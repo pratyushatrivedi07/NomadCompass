@@ -14,7 +14,9 @@ type Props = {
   city?: string;
 };
 
-function normalizeMode(mode: string): "metro" | "bus" | "train" | "walk" {
+function normalizeMode(
+  mode: string,
+): "metro" | "bus" | "train" | "walk" | "ferry" {
   const m = mode.toLowerCase();
   if (
     m.includes("metro") ||
@@ -24,8 +26,11 @@ function normalizeMode(mode: string): "metro" | "bus" | "train" | "walk" {
     m.includes("mrt")
   )
     return "metro";
+  if (m.includes("ferry") || m.includes("boat") || m.includes("water"))
+    return "ferry";
   if (m.includes("bus") || m.includes("tram")) return "bus";
   if (m.includes("train") || m.includes("rail")) return "train";
+
   return "walk";
 }
 
@@ -38,6 +43,8 @@ function getPolylineStyle(mode: string) {
       return { color: "#00B0FF", weight: 5, opacity: 1, dashArray: undefined };
     case "train":
       return { color: "#FF6D00", weight: 6, opacity: 1, dashArray: undefined };
+    case "ferry":
+      return { color: "#d40058", weight: 5, opacity: 1, dashArray: "8, 4" };
     default:
       return { color: "#056f3c", weight: 5, opacity: 1, dashArray: "6, 10" };
   }
@@ -97,6 +104,7 @@ export function JourneyGenie({ stops, activeIndex, onSelect, city }: Props) {
           <div><span style="display:inline-block;width:24px;height:4px;background:#00B0FF;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Bus</div>
           <div><span style="display:inline-block;width:24px;height:4px;background:#FF6D00;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Train</div>
           <div style="display:flex;align-items:center"><span style="display:inline-block;width:24px;border-top:3px dashed #056f3c;margin-right:8px"></span>Walk</div>
+          <div><span style="display:inline-block;width:24px;height:4px;background:#d40058;margin-right:8px;vertical-align:middle;border-radius:2px;border-top:3px dashed #00BCD4;background:none"></span>Ferry</div>
         </div>`;
 
       const Legend = L.Control.extend({
@@ -150,7 +158,8 @@ export function JourneyGenie({ stops, activeIndex, onSelect, city }: Props) {
 
       const icon = L.divIcon({
         className: "",
-        html: `<div class="leaflet-marker-letter ${i === activeIndex ? "active" : ""}">${letters[i] ?? i + 1}</div>`,
+        // html: `<div class="leaflet-marker-letter ${i === activeIndex ? "active" : ""}">${letters[i] ?? i + 1}</div>`,
+        html: `<div class="leaflet-marker-letter ${i === activeIndex ? "active" : ""}"><span>${letters[i] ?? i + 1}</span></div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });

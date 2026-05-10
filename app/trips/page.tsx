@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Map, Loader2, MapPin, Calendar } from "lucide-react";
+import { Map, Loader2, MapPin, Calendar, Trash2, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCurrency } from "@/lib/cities";
 
 type Trip = {
   id: string;
@@ -11,50 +12,99 @@ type Trip = {
   city: string;
   days: number;
   budget: string;
+  travel_style: string;
   created_at: string;
+  itinerary: any;
 };
 
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchTrips = () => {
     supabase
       .from("trips")
-      .select("id, share_slug, city, days, budget, created_at")
+      .select(
+        "id, share_slug, city, days, budget, travel_style, created_at, itinerary",
+      )
       .order("created_at", { ascending: false })
       .limit(20)
       .then(({ data }: { data: any }) => {
         setTrips(data ?? []);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchTrips();
   }, []);
 
+  const deleteTrip = async (id: string) => {
+    if (!confirm("Delete this trip?")) return;
+    setDeleting(id);
+    await supabase.from("trips").delete().eq("id", id);
+    setTrips((prev) => prev.filter((t) => t.id !== id));
+    setDeleting(null);
+  };
+
+  const getTripTotal = (trip: Trip) => {
+    const currency = getCurrency(trip.city);
+    const total =
+      trip.itinerary?.trip_total_cost ??
+      trip.itinerary?.days?.reduce(
+        (s: number, d: any) => s + (d.daily_total_cost ?? 0),
+        0,
+      ) ??
+      0;
+    return `${currency.symbol}${total.toFixed(0)}`;
+  };
+
+  const getDayCount = (trip: Trip) => {
+    return trip.itinerary?.days?.length ?? trip.days;
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Map className="h-5 w-5 text-primary" />
-            <span>JourneyGenie</span>
+    <div className="min-h-screen bg-[#f8f9fa]">
+      <header className="bg-white border-b border-[#dadce0] sticky top-0 z-10">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+          <Link href="/" className="flex items-center gap-2">
+            <Map className="h-5 w-5 text-[#1a73e8]" />
+            <span
+              className="font-medium text-[#202124]"
+              style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+            >
+              JourneyGenie
+            </span>
+          </Link>
+          <Link
+            href="/"
+            className="text-sm font-medium text-[#1a73e8] hover:bg-[#e8f0fe] px-4 py-2 rounded-full transition"
+          >
+            + Plan new trip
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="mb-8 text-3xl font-semibold">My Trips</h1>
+      <main className="mx-auto max-w-3xl px-6 py-8">
+        <h1
+          className="text-2xl font-medium text-[#202124] mb-6"
+          style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+        >
+          My Trips
+        </h1>
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-[#1a73e8]" />
           </div>
         ) : trips.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-12 text-center">
-            <MapPin className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-            <p className="text-muted-foreground">No saved trips yet.</p>
+          <div className="rounded-2xl border border-[#dadce0] bg-white p-12 text-center">
+            <MapPin className="mx-auto mb-4 h-10 w-10 text-[#9aa0a6]" />
+            <p className="text-[#5f6368] mb-4">No saved trips yet.</p>
             <Link
               href="/"
-              className="mt-4 inline-block rounded-xl bg-primary px-4 py-2 text-sm text-primary-foreground"
+              className="inline-block bg-[#1a73e8] text-white text-sm font-medium px-6 py-2.5 rounded-full hover:bg-[#1557b0] transition"
             >
               Plan your first trip
             </Link>
@@ -62,25 +112,68 @@ export default function TripsPage() {
         ) : (
           <div className="space-y-3">
             {trips.map((t) => (
-              <Link
+              <div
                 key={t.id}
-                href={`/t/${t.share_slug}`}
-                className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-accent/50 transition"
+                className="flex items-center gap-4 rounded-2xl border border-[#dadce0] bg-white p-4 hover:shadow-sm transition group"
               >
-                <div>
-                  <div className="font-medium capitalize">{t.city}</div>
-                  <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {t.days} days
-                    </span>
-                    <span className="capitalize">{t.budget}</span>
+                <Link
+                  href={`/t/${t.share_slug}`}
+                  className="flex-1 flex items-center gap-4"
+                >
+                  {/* City icon */}
+                  <div className="w-12 h-12 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0">
+                    <MapPin className="h-5 w-5 text-[#1a73e8]" />
                   </div>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(t.created_at).toLocaleDateString()}
-                </span>
-              </Link>
+
+                  {/* Trip info */}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className="font-medium text-[#202124] capitalize"
+                      style={{
+                        fontFamily: "'Google Sans', Roboto, sans-serif",
+                      }}
+                    >
+                      {t.city}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-[#5f6368]">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {getDayCount(t)} days
+                      </span>
+                      <span className="capitalize">{t.budget}</span>
+                      <span className="capitalize">{t.travel_style}</span>
+                    </div>
+                  </div>
+
+                  {/* Cost + date */}
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-medium text-[#202124]">
+                      {getTripTotal(t)}
+                    </div>
+                    <div className="text-xs text-[#9aa0a6] mt-0.5">
+                      {new Date(t.created_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => deleteTrip(t.id)}
+                  disabled={deleting === t.id}
+                  className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition"
+                  title="Delete trip"
+                >
+                  {deleting === t.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         )}

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Map as MapIcon, Loader2 } from "lucide-react";
+import { Map as MapIcon, Loader2, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCurrency } from "@/lib/cities";
 import type { Itinerary } from "@/lib/types";
 import { StopCard } from "@/components/StopCard";
 
@@ -13,7 +14,7 @@ const JourneyGenie = dynamic(
   () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
   {
     ssr: false,
-    loading: () => <div className="h-full w-full bg-muted animate-pulse" />,
+    loading: () => <div className="h-full w-full bg-[#f1f3f4] animate-pulse" />,
   },
 );
 
@@ -39,7 +40,9 @@ export default function SharedTripPage() {
           setLoading(false);
           return;
         }
-        setItinerary(data.itinerary as unknown as Itinerary);
+        const itin = data.itinerary as unknown as Itinerary;
+        setItinerary(itin);
+        if (itin?.days?.length) setActiveDay(itin.days[0].day);
         setMeta({
           city: data.city,
           days: data.days,
@@ -52,11 +55,14 @@ export default function SharedTripPage() {
 
   const day =
     itinerary?.days.find((d) => d.day === activeDay) ?? itinerary?.days[0];
+  const currency = meta ? getCurrency(meta.city) : { symbol: "£" };
+  const tripTotal =
+    itinerary?.days.reduce((s, d) => s + (d.daily_total_cost ?? 0), 0) ?? 0;
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#1a73e8]" />
       </div>
     );
   }
@@ -64,8 +70,8 @@ export default function SharedTripPage() {
   if (notFound || !itinerary || !day) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Trip not found.</p>
-        <Link href="/" className="text-primary underline">
+        <p className="text-[#5f6368]">Trip not found.</p>
+        <Link href="/" className="text-[#1a73e8] underline">
           Plan your own trip
         </Link>
       </div>
@@ -74,25 +80,33 @@ export default function SharedTripPage() {
 
   return (
     <div className="flex h-screen flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)] md:w-[40%] md:max-w-[520px]">
-        <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+      <aside
+        className="flex w-full flex-col bg-white md:w-[380px] md:max-w-[380px] shadow-lg"
+        style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+      >
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-[#dadce0]">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white"
+            className="p-2 hover:bg-[#f1f3f4] rounded-full transition"
           >
-            <MapIcon className="h-4 w-4 text-primary" /> JourneyGenie
+            <ChevronLeft className="h-5 w-5 text-[#5f6368]" />
           </Link>
-          <span className="text-xs text-white/40">Shared itinerary</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <MapIcon className="h-4 w-4 text-[#1a73e8]" />
+              <span className="text-sm font-medium text-[#1a73e8]">Maps</span>
+            </div>
+            <h1 className="text-base font-medium text-[#202124] capitalize">
+              {meta?.city}
+            </h1>
+          </div>
+          <span className="text-xs text-[#9aa0a6] bg-[#f1f3f4] px-2 py-1 rounded-full">
+            Shared
+          </span>
         </header>
 
-        <div className="px-5 py-4">
-          <h1 className="text-xl font-semibold capitalize">{meta?.city}</h1>
-          <p className="text-xs text-white/60">
-            {meta?.days} days · {meta?.budget} · {meta?.travelStyle}
-          </p>
-        </div>
-
-        <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-3 pb-3">
+        {/* Day tabs */}
+        <div className="flex border-b border-[#dadce0] px-4 overflow-x-auto">
           {itinerary.days.map((d) => (
             <button
               key={d.day}
@@ -100,19 +114,26 @@ export default function SharedTripPage() {
                 setActiveDay(d.day);
                 setActiveStop(null);
               }}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm transition ${activeDay === d.day ? "bg-primary text-primary-foreground" : "text-white/70 hover:bg-white/10"}`}
+              className={`px-4 py-3 text-sm font-medium transition border-b-2 -mb-px shrink-0 ${
+                activeDay === d.day
+                  ? "border-[#1a73e8] text-[#1a73e8]"
+                  : "border-transparent text-[#5f6368] hover:text-[#202124]"
+              }`}
             >
               Day {d.day}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {day.theme && (
-            <div className="text-xs uppercase tracking-wide text-white/50">
-              {day.theme}
-            </div>
-          )}
+        {/* Theme */}
+        {day.theme && (
+          <div className="px-4 pt-3 text-[11px] uppercase tracking-widest font-medium text-[#5f6368]">
+            {day.theme}
+          </div>
+        )}
+
+        {/* Stops */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {day.stops.map((stop, i) => (
             <StopCard
               key={i}
@@ -120,25 +141,33 @@ export default function SharedTripPage() {
               index={i}
               active={activeStop === i}
               onClick={() => setActiveStop(i)}
+              currencySymbol={currency.symbol}
             />
           ))}
         </div>
 
-        <div className="border-t border-white/10 bg-black/20 p-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-white/60">Daily estimate</span>
-            <span className="font-semibold">
-              £{day.daily_total_cost?.toFixed(2) ?? "0.00"}
+        {/* Footer */}
+        <div className="border-t border-[#dadce0] bg-white p-4">
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-[#5f6368]">Daily estimate</span>
+            <span className="font-medium text-[#202124]">
+              {currency.symbol}
+              {day.daily_total_cost?.toFixed(2) ?? "0.00"}
             </span>
           </div>
-          <div className="mt-2">
-            <Link
-              href="/"
-              className="block w-full rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
-            >
-              Plan my own trip →
-            </Link>
+          <div className="flex items-center justify-between text-sm mb-4">
+            <span className="text-[#5f6368]">Trip total</span>
+            <span className="font-medium text-[#202124]">
+              {currency.symbol}
+              {tripTotal.toFixed(2)}
+            </span>
           </div>
+          <Link
+            href="/"
+            className="block w-full text-center bg-[#1a73e8] text-white text-sm font-medium py-2.5 rounded-full hover:bg-[#1557b0] transition"
+          >
+            Plan my own trip →
+          </Link>
         </div>
       </aside>
 

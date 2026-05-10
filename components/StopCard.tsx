@@ -1,6 +1,14 @@
 "use client";
 
-import { X, Bus, Footprints, Train, Landmark, UtensilsCrossed, Activity } from "lucide-react";
+import {
+  X,
+  Bus,
+  Footprints,
+  Train,
+  Landmark,
+  UtensilsCrossed,
+  Activity,
+} from "lucide-react";
 import type { Stop } from "@/lib/types";
 
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -37,12 +45,14 @@ export function StopCard({
   active,
   onClick,
   onRemove,
+  currencySymbol = "$",
 }: {
   stop: Stop;
   index: number;
   active: boolean;
   onClick: () => void;
   onRemove?: () => void;
+  currencySymbol?: string;
 }) {
   const t = stop.transport_from_previous;
   const TIcon = transportIcon(t?.mode);
@@ -53,28 +63,32 @@ export function StopCard({
   return (
     <div>
       {showTransport && (
-        <div className="ml-4 mb-2 flex items-center gap-2 text-xs text-white/60">
-          <TIcon className="h-3.5 w-3.5 shrink-0" />
+        <div className="transport-connector">
+          <TIcon className="h-3 w-3" />
           {(t!.mode ?? "").toLowerCase().includes("walk") ? (
-            <span>{t!.walk_to_stop_mins ?? (t as any)?.walk_mins ?? 10} min walk</span>
+            <span>{t!.walk_to_stop_mins ?? 10} min walk</span>
           ) : (
-            <span className="truncate">
-              {t!.line ? `${cap(t!.mode)} · ${t!.line}` : cap(t!.mode)}
+            <span>
+              {cap(t!.mode)}
+              {t!.line ? ` ${t!.line}` : ""}
               {t!.from_stop ? ` · ${t!.from_stop} → ${t!.to_stop}` : ""}
-              {fare > 0 ? ` · £${fare.toFixed(2)}` : ""}
+              {fare > 0 ? ` · ${currencySymbol}${fare.toFixed(2)}` : ""}
             </span>
           )}
         </div>
       )}
       <button
         onClick={onClick}
-        className={`group flex w-full gap-3 rounded-xl bg-white p-3 text-left text-foreground shadow-card transition ${
-          active ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-primary/30"
+        className={`group flex w-full gap-3 rounded-lg bg-white p-3 text-left transition border ${
+          active
+            ? "border-[#1a73e8] bg-[#e8f0fe]"
+            : "border-transparent hover:bg-[#f1f3f4]"
         }`}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
           {letters[index] ?? index + 1}
         </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="font-medium leading-tight">{stop.name}</div>

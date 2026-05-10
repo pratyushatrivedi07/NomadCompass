@@ -11,9 +11,9 @@ import {
   Save,
   Loader2,
   Copy,
+  Share2,
+  MoreVertical,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { StopCard } from "@/components/StopCard";
 import type { Itinerary, Stop } from "@/lib/types";
-import { cityCenter } from "@/lib/cities";
+import { cityCenter, getCurrency } from "@/lib/cities";
 import { supabase } from "@/lib/supabase";
 import { haversineKm } from "@/lib/utils";
 import { toast } from "sonner";
@@ -32,11 +32,9 @@ const JourneyGenie = dynamic(
   () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
   {
     ssr: false,
-    loading: () => <div className="h-full w-full bg-muted animate-pulse" />,
+    loading: () => <div className="h-full w-full bg-[#f1f3f4] animate-pulse" />,
   },
 );
-
-const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 type Stored = {
   meta: {
@@ -56,14 +54,16 @@ export default function TripPage() {
   const [activeStop, setActiveStop] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<"save" | "share" | null>(null);
   const [addingFor, setAddingFor] = useState<number | null>(null);
   const [newStopName, setNewStopName] = useState("");
   const [nominatimResults, setNominatimResults] = useState<
     Array<{ display_name: string; lat: string; lon: string }>
   >([]);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("journeyGenie:current");
+    const raw = sessionStorage.getItem("journeygenie:current");
     if (!raw) {
       router.push("/");
       return;
@@ -77,17 +77,20 @@ export default function TripPage() {
       data?.itinerary.days[0],
     [data, activeDay],
   );
-
   const tripTotal = useMemo(
     () =>
       data?.itinerary.days.reduce((s, d) => s + (d.daily_total_cost ?? 0), 0) ??
       0,
     [data],
   );
+  const currency = useMemo(
+    () => (data ? getCurrency(data.meta.city) : { symbol: "£", code: "GBP" }),
+    [data],
+  );
 
   const persist = (next: Stored) => {
     setData(next);
-    sessionStorage.setItem("journeyGenie:current", JSON.stringify(next));
+    sessionStorage.setItem("journeygenie:current", JSON.stringify(next));
   };
 
   const removeStop = (idx: number) => {
@@ -113,9 +116,7 @@ export default function TripPage() {
     }
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          query + " " + (data?.meta.city ?? ""),
-        )}&format=json&limit=5`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + " " + (data?.meta.city ?? ""))}&format=json&limit=5`,
         { headers: { "User-Agent": "JourneyGenie/1.0" } },
       );
       setNominatimResults(await res.json());
@@ -137,8 +138,6 @@ export default function TripPage() {
       ? haversineKm(lastStop.lat, lastStop.lng, newLat, newLng)
       : 0;
     const mode = distKm < 0.8 ? "walk" : distKm < 5 ? "bus" : "metro";
-    const fare = mode === "walk" ? 0 : 2.5;
-
     const newStop: Stop = {
       name: r.display_name.split(",")[0].trim(),
       type: "attraction",
@@ -151,12 +150,11 @@ export default function TripPage() {
         line: null,
         from_stop: null,
         to_stop: null,
-        fare,
+        fare: mode === "walk" ? 0 : 2.5,
         walk_to_stop_mins:
           mode === "walk" ? Math.round((distKm * 1000) / 80) : 5,
       },
     };
-
     const newDays = data.itinerary.days.map((d) =>
       d.day !== day.day
         ? d
@@ -174,6 +172,10 @@ export default function TripPage() {
 
   const save = async () => {
     if (!data) return;
+    if (shareUrl) {
+      setModalMode("save");
+      return;
+    }
     setSaving(true);
     try {
       const { data: row, error } = await supabase
@@ -189,7 +191,9 @@ export default function TripPage() {
         .select("share_slug")
         .single();
       if (error) throw error;
-      setShareUrl(`${window.location.origin}/t/${row.share_slug}`);
+      const url = `${window.location.origin}/t/${row.share_slug}`;
+      setShareUrl(url);
+      setModalMode("save");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -197,37 +201,84 @@ export default function TripPage() {
     }
   };
 
+  const handleShare = async () => {
+    if (!shareUrl) {
+      await save();
+      setModalMode("share");
+      return;
+    }
+    setModalMode("share");
+  };
+
   if (!data || !day) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#1a73e8]" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen flex-col md:flex-row">
-      <aside className="flex w-full flex-col border-r bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)] md:w-[40%] md:max-w-[520px]">
-        <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div
+      className="flex h-screen flex-col md:flex-row"
+      style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+    >
+      {/* Sidebar */}
+      <aside className="flex w-full flex-col bg-white md:w-[380px] md:max-w-[380px] shadow-lg border-r border-[#dadce0]">
+        {/* Header */}
+        <header className="flex items-center gap-2 px-3 py-3 border-b border-[#dadce0]">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm text-white/70 hover:text-white"
+            className="p-2 hover:bg-[#f1f3f4] rounded-full transition flex items-center justify-center"
           >
-            <ChevronLeft className="h-4 w-4" /> New trip
+            <ChevronLeft className="h-5 w-5 text-[#5f6368]" />
           </Link>
-          <div className="flex items-center gap-2 font-semibold">
-            <MapIcon className="h-4 w-4 text-primary" /> JourneyGenie
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <MapIcon className="h-3.5 w-3.5 text-[#1a73e8] shrink-0" />
+              <span className="text-xs font-medium text-[#1a73e8]">Maps</span>
+            </div>
+            <h1 className="text-[15px] font-medium text-[#202124] capitalize leading-tight truncate">
+              {data.meta.city}
+            </h1>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 hover:bg-[#f1f3f4] rounded-full transition"
+            >
+              <MoreVertical className="h-5 w-5 text-[#5f6368]" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-[#dadce0] z-50 overflow-hidden">
+                <Link
+                  href="/trips"
+                  onClick={() => setShowMenu(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-[#202124] hover:bg-[#f1f3f4]"
+                >
+                  Saved itineraries
+                </Link>
+                <Link
+                  href="/"
+                  onClick={() => setShowMenu(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-[#202124] hover:bg-[#f1f3f4]"
+                >
+                  Plan new trip
+                </Link>
+              </div>
+            )}
           </div>
         </header>
 
-        <div className="px-5 py-4">
-          <h1 className="text-xl font-semibold capitalize">{data.meta.city}</h1>
-          <p className="text-xs text-white/60">
+        {/* City + meta */}
+        <div className="px-4 py-3 border-b border-[#f1f3f4]">
+          <p className="text-xs text-[#5f6368]">
             {data.meta.days} days · {data.meta.budget} · {data.meta.travelStyle}
           </p>
         </div>
 
-        <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-3 pb-3">
+        {/* Day tabs */}
+        <div className="flex border-b border-[#dadce0] px-2 overflow-x-auto">
           {data.itinerary.days.map((d) => (
             <button
               key={d.day}
@@ -235,10 +286,10 @@ export default function TripPage() {
                 setActiveDay(d.day);
                 setActiveStop(null);
               }}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm transition ${
+              className={`px-3 py-3 text-sm font-medium transition border-b-2 -mb-px shrink-0 ${
                 activeDay === d.day
-                  ? "bg-primary text-primary-foreground"
-                  : "text-white/70 hover:bg-white/10"
+                  ? "border-[#1a73e8] text-[#1a73e8]"
+                  : "border-transparent text-[#5f6368] hover:text-[#202124] hover:bg-[#f8f9fa]"
               }`}
             >
               Day {d.day}
@@ -246,9 +297,10 @@ export default function TripPage() {
           ))}
         </div>
 
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {/* Stops */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {day.theme && (
-            <div className="text-xs uppercase tracking-wide text-white/50">
+            <div className="text-[11px] uppercase tracking-widest font-medium text-[#5f6368] pb-2">
               {day.theme}
             </div>
           )}
@@ -261,90 +313,117 @@ export default function TripPage() {
               active={activeStop === i}
               onClick={() => setActiveStop(i)}
               onRemove={() => removeStop(i)}
+              currencySymbol={currency.symbol}
             />
           ))}
 
+          {/* Add stop */}
           {addingFor === day.day ? (
-            <div className="rounded-xl border border-white/20 bg-white/5 p-3">
+            <div className="rounded-xl border border-[#dadce0] bg-white p-3 mt-2">
               <div className="relative">
-                <Input
+                <input
                   value={newStopName}
                   onChange={(e) => searchNominatim(e.target.value)}
                   placeholder="Search for a place…"
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/50"
+                  className="w-full border border-[#dadce0] rounded-lg px-3 py-2.5 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] bg-white"
                   autoFocus
                 />
                 {nominatimResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-white/20 bg-[#0F172A] shadow-xl">
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-[#dadce0] bg-white shadow-lg overflow-hidden">
                     {nominatimResults.map((r, idx) => (
                       <button
                         key={idx}
-                        className="flex w-full px-3 py-2 text-left text-xs text-white/80 hover:bg-white/10 first:rounded-t-lg last:rounded-b-lg"
+                        className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[#f1f3f4] transition border-b border-[#f1f3f4] last:border-0"
                         onClick={() => addStopFromNominatim(r)}
                       >
-                        <span className="font-medium">
-                          {r.display_name.split(",")[0]}
-                        </span>
-                        <span className="ml-1 text-white/40">
-                          {r.display_name.split(",").slice(1, 3).join(",")}
-                        </span>
+                        <svg
+                          className="mt-0.5 shrink-0 text-[#5f6368]"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          width="16"
+                          fill="currentColor"
+                        >
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                        </svg>
+                        <div>
+                          <div className="text-sm font-medium text-[#202124]">
+                            {r.display_name.split(",")[0]}
+                          </div>
+                          <div className="text-xs text-[#5f6368]">
+                            {r.display_name
+                              .split(",")
+                              .slice(1, 3)
+                              .join(",")
+                              .trim()}
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="mt-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setAddingFor(null);
-                    setNewStopName("");
-                    setNominatimResults([]);
-                  }}
-                  className="w-full text-white/70 hover:bg-white/10 hover:text-white"
-                >
-                  Cancel
-                </Button>
-              </div>
+              <button
+                onClick={() => {
+                  setAddingFor(null);
+                  setNewStopName("");
+                  setNominatimResults([]);
+                }}
+                className="mt-2 w-full text-sm text-[#5f6368] py-1.5 hover:bg-[#f1f3f4] rounded-lg transition"
+              >
+                Cancel
+              </button>
             </div>
           ) : (
             <button
               onClick={() => setAddingFor(day.day)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-3 text-sm text-white/60 hover:bg-white/5"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#dadce0] py-3 text-sm text-[#1a73e8] hover:bg-[#e8f0fe] transition mt-2"
             >
               <Plus className="h-4 w-4" /> Add a stop
             </button>
           )}
         </div>
 
-        <div className="border-t border-white/10 bg-black/20 p-4">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-white/60">Daily estimate</span>
-            <span className="font-semibold">
-              £{day.daily_total_cost?.toFixed(2) ?? "0.00"}
+        {/* Footer */}
+        <div className="border-t border-[#dadce0] bg-white p-4">
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-[#5f6368]">Daily estimate</span>
+            <span className="font-medium text-[#202124]">
+              {currency.symbol}
+              {day.daily_total_cost?.toFixed(2) ?? "0.00"}
             </span>
           </div>
-          <div className="mb-4 flex items-center justify-between text-sm">
-            <span className="text-white/60">Trip total</span>
-            <span className="font-semibold">£{tripTotal.toFixed(2)}</span>
+          <div className="flex items-center justify-between text-sm mb-4">
+            <span className="text-[#5f6368]">Trip total</span>
+            <span className="font-medium text-[#202124]">
+              {currency.symbol}
+              {tripTotal.toFixed(2)}
+            </span>
           </div>
-          <Button onClick={save} disabled={saving} className="w-full">
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Itinerary
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-1.5 border border-[#dadce0] text-[#1a73e8] text-sm font-medium py-2.5 rounded-full hover:bg-[#e8f0fe] transition disabled:opacity-50"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-[#1a73e8] text-white text-sm font-medium py-2.5 rounded-full hover:bg-[#1557b0] transition"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </button>
+          </div>
         </div>
       </aside>
 
+      {/* Map */}
       <div className="relative h-[50vh] flex-1 md:h-auto">
         <JourneyGenie
           stops={day.stops}
@@ -354,38 +433,67 @@ export default function TripPage() {
         />
       </div>
 
-      <Dialog open={!!shareUrl} onOpenChange={(o) => !o && setShareUrl(null)}>
-        <DialogContent>
+      {/* Modal */}
+      <Dialog open={!!modalMode} onOpenChange={(o) => !o && setModalMode(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Itinerary saved! 🎉</DialogTitle>
+            <DialogTitle
+              style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+            >
+              {modalMode === "save" ? "Itinerary saved! 🎉" : "Share your trip"}
+            </DialogTitle>
             <DialogDescription>
-              Share this link with anyone to show them your trip.
+              {modalMode === "save"
+                ? "Your itinerary has been saved."
+                : "Anyone with this link can view your trip."}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-2">
-            <Input
-              value={shareUrl ?? ""}
-              readOnly
-              className="font-mono text-xs"
-            />
-            <Button
-              onClick={async () => {
-                await navigator.clipboard.writeText(shareUrl ?? "");
-                toast.success("Link copied!");
-              }}
-            >
-              <Copy className="mr-1 h-4 w-4" /> Copy
-            </Button>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() =>
-              shareUrl &&
-              router.push(shareUrl.replace(window.location.origin, ""))
-            }
-          >
-            Open shared view
-          </Button>
+
+          {modalMode === "save" && (
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => router.push("/trips")}
+                className="w-full border border-[#dadce0] text-[#1a73e8] text-sm font-medium py-2.5 rounded-full hover:bg-[#e8f0fe] transition"
+              >
+                View My Trips
+              </button>
+              <button
+                onClick={() => setModalMode("share")}
+                className="w-full bg-[#1a73e8] text-white text-sm font-medium py-2.5 rounded-full hover:bg-[#1557b0] transition flex items-center justify-center gap-2"
+              >
+                <Share2 className="h-4 w-4" /> Share itinerary
+              </button>
+            </div>
+          )}
+
+          {modalMode === "share" && shareUrl && (
+            <div className="space-y-2 pt-1">
+              <div className="flex gap-2">
+                <input
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 text-xs font-mono border border-[#dadce0] rounded-lg px-3 py-2 bg-[#f1f3f4] text-[#202124] outline-none"
+                />
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(shareUrl);
+                    toast.success("Link copied!");
+                  }}
+                  className="flex items-center gap-1.5 bg-[#1a73e8] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1557b0] transition"
+                >
+                  <Copy className="h-4 w-4" /> Copy
+                </button>
+              </div>
+              <button
+                onClick={() =>
+                  router.push(shareUrl.replace(window.location.origin, ""))
+                }
+                className="w-full text-sm text-[#1a73e8] py-2 hover:bg-[#e8f0fe] rounded-full transition"
+              >
+                Open shared view →
+              </button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

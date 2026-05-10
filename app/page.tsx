@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Map,
   Loader2,
   Backpack,
   Hotel,
@@ -14,15 +13,8 @@ import {
   Shuffle,
   ArrowRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { getBudgetRanges } from "@/lib/cities";
 import { toast } from "sonner";
-
-const budgets = [
-  { id: "budget", icon: Backpack, label: "Budget", sub: "Under £50/day", emoji: "🎒" },
-  { id: "mid", icon: Hotel, label: "Mid-range", sub: "£50–£150/day", emoji: "🏨" },
-  { id: "comfort", icon: Plane, label: "Comfort", sub: "£150+/day", emoji: "✈️" },
-] as const;
 
 const styles = [
   { id: "public", icon: Bus, label: "Public Transport" },
@@ -56,11 +48,22 @@ export default function SetupPage() {
   const [step, setStep] = useState(1);
   const [city, setCity] = useState("");
   const [days, setDays] = useState(3);
-  const [budget, setBudget] = useState<"budget" | "mid" | "comfort" | null>(null);
-  const [travelStyle, setTravelStyle] = useState<"public" | "walking" | "mixed" | null>(null);
+  const [budget, setBudget] = useState<"budget" | "mid" | "comfort" | null>(
+    null,
+  );
+  const [travelStyle, setTravelStyle] = useState<
+    "public" | "walking" | "mixed" | null
+  >(null);
   const [mustVisit, setMustVisit] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+
+  const budgetRanges = useMemo(() => getBudgetRanges(city), [city]);
+  const budgets = [
+    { id: "budget", label: "Budget", sub: budgetRanges.budget, emoji: "🎒" },
+    { id: "mid", label: "Mid-range", sub: budgetRanges.mid, emoji: "🏨" },
+    { id: "comfort", label: "Comfort", sub: budgetRanges.comfort, emoji: "✈️" },
+  ] as const;
 
   useEffect(() => {
     if (!loading) return;
@@ -80,7 +83,6 @@ export default function SetupPage() {
         .map((s) => s.trim())
         .filter(Boolean)
         .slice(0, 10);
-
       const res = await fetch("/api/generate-itinerary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,64 +94,91 @@ export default function SetupPage() {
           mustVisit: mustVisitList,
         }),
       });
-
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error ?? "Couldn't generate itinerary — try again.");
+        throw new Error(
+          err.error ?? "Couldn't generate itinerary — try again.",
+        );
       }
-
       const result = await res.json();
       sessionStorage.setItem(
-        "journeyGenie:current",
+        "journeygenie:current",
         JSON.stringify({
-          meta: { city: city.trim(), days, budget, travelStyle, mustVisit: mustVisitList },
+          meta: {
+            city: city.trim(),
+            days,
+            budget,
+            travelStyle,
+            mustVisit: mustVisitList,
+          },
           itinerary: result,
         }),
       );
       router.push("/trip");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't generate itinerary — try again.");
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "Couldn't generate itinerary — try again.",
+      );
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Map className="h-5 w-5 text-primary" />
-            <span>JourneyGenie</span>
-          </Link>
-          <Link href="/trips" className="text-sm text-white/70 hover:text-white">
+    <div
+      className="min-h-screen bg-white"
+      style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
+    >
+      {/* Header */}
+      <header className="border-b border-[#dadce0] bg-white sticky top-0 z-10">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2">
+            <svg height="22" viewBox="0 0 24 24" width="22">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                fill="#1a73e8"
+              />
+            </svg>
+            <span className="text-lg font-medium text-[#202124]">
+              JourneyGenie
+            </span>
+          </div>
+          <Link
+            href="/trips"
+            className="text-sm font-medium text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] px-3 py-1.5 rounded-full transition"
+          >
             My Trips
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-12">
-        <div className="mb-10 text-center">
-          <h1 className="text-4xl font-semibold tracking-tight">Plan your perfect trip</h1>
-          <p className="mt-3 text-muted-foreground">
+      <main className="mx-auto max-w-2xl px-6 py-10">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-medium text-[#202124] tracking-tight">
+            Plan your perfect trip
+          </h1>
+          <p className="mt-2 text-[#5f6368]">
             A few quick questions and we'll map it for you.
           </p>
         </div>
 
-        <div className="space-y-6 rounded-2xl border bg-card p-8 shadow-card">
+        <div className="space-y-6 rounded-2xl border border-[#dadce0] bg-white p-8 shadow-sm">
           {/* Step 1 — City */}
-          <Step n={1} active={step >= 1} title="Where are you going?">
+          <Step n={1} title="Where are you going?">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {cities.map((c) => (
                 <button
                   key={c.name}
                   onClick={() => {
                     setCity(c.name.toLowerCase());
+                    setBudget(null);
                     setStep((s) => Math.max(s, 2));
                   }}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
                     city === c.name.toLowerCase()
-                      ? "border-primary bg-accent ring-2 ring-primary/20"
-                      : "hover:bg-accent/50"
+                      ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
+                      : "border-[#dadce0] text-[#202124] hover:bg-[#f1f3f4]"
                   }`}
                 >
                   <span className="text-base">{c.flag}</span>
@@ -157,34 +186,37 @@ export default function SetupPage() {
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">More cities coming soon.</p>
+            <p className="mt-2 text-xs text-[#9aa0a6]">
+              More cities coming soon.
+            </p>
           </Step>
 
           {/* Step 2 — Days */}
           {step >= 2 && (
-            <Step n={2} active title="How many days?">
+            <Step n={2} title="How many days?">
               <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
+                <button
                   onClick={() => setDays(Math.max(1, days - 1))}
+                  className="w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition"
                 >
                   −
-                </Button>
-                <div className="min-w-12 text-center text-2xl font-semibold tabular-nums">
+                </button>
+                <div className="min-w-12 text-center text-2xl font-medium text-[#202124] tabular-nums">
                   {days}
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
+                <button
                   onClick={() => setDays(Math.min(7, days + 1))}
+                  className="w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition"
                 >
                   +
-                </Button>
+                </button>
                 {step === 2 && (
-                  <Button variant="ghost" className="ml-auto" onClick={() => setStep(3)}>
-                    Next <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
+                  <button
+                    onClick={() => setStep(3)}
+                    className="ml-auto flex items-center gap-1 text-sm text-[#1a73e8] hover:underline"
+                  >
+                    Next <ArrowRight className="h-4 w-4" />
+                  </button>
                 )}
               </div>
             </Step>
@@ -192,7 +224,7 @@ export default function SetupPage() {
 
           {/* Step 3 — Budget */}
           {step >= 3 && (
-            <Step n={3} active title="Daily budget">
+            <Step n={3} title="Daily budget">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {budgets.map((b) => (
                   <button
@@ -203,13 +235,13 @@ export default function SetupPage() {
                     }}
                     className={`rounded-xl border p-4 text-left transition ${
                       budget === b.id
-                        ? "border-primary bg-accent ring-2 ring-primary/20"
-                        : "hover:bg-accent/50"
+                        ? "border-[#1a73e8] bg-[#e8f0fe]"
+                        : "border-[#dadce0] hover:bg-[#f1f3f4]"
                     }`}
                   >
                     <div className="mb-2 text-2xl">{b.emoji}</div>
-                    <div className="font-medium">{b.label}</div>
-                    <div className="text-xs text-muted-foreground">{b.sub}</div>
+                    <div className="font-medium text-[#202124]">{b.label}</div>
+                    <div className="text-xs text-[#5f6368]">{b.sub}</div>
                   </button>
                 ))}
               </div>
@@ -218,7 +250,7 @@ export default function SetupPage() {
 
           {/* Step 4 — Travel style */}
           {step >= 4 && (
-            <Step n={4} active title="Travel style">
+            <Step n={4} title="Travel style">
               <div className="grid grid-cols-3 gap-2">
                 {styles.map((s) => {
                   const Icon = s.icon;
@@ -231,8 +263,8 @@ export default function SetupPage() {
                       }}
                       className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition ${
                         travelStyle === s.id
-                          ? "border-primary bg-accent text-foreground"
-                          : "text-muted-foreground hover:bg-accent/50"
+                          ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
+                          : "border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4]"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -246,33 +278,33 @@ export default function SetupPage() {
 
           {/* Step 5 — Must visit */}
           {step >= 5 && (
-            <Step n={5} active title="Any must-visit places? (optional)">
-              <Input
+            <Step n={5} title="Any must-visit places? (optional)">
+              <input
                 value={mustVisit}
                 onChange={(e) => setMustVisit(e.target.value)}
                 placeholder="e.g. Tower of London, Borough Market"
+                className="w-full border border-[#dadce0] rounded-xl px-4 py-3 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
               />
-              <p className="mt-2 text-xs text-muted-foreground">Comma separated.</p>
+              <p className="mt-1.5 text-xs text-[#9aa0a6]">Comma separated.</p>
             </Step>
           )}
 
           {/* Submit */}
           {step >= 4 && budget && travelStyle && (
-            <Button
+            <button
               onClick={submit}
               disabled={loading || !city.trim()}
-              size="lg"
-              className="w-full text-base"
+              className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-3 rounded-full transition disabled:opacity-60"
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   {loadingMessages[loadingMsgIdx]}
                 </>
               ) : (
                 "Build My Itinerary"
               )}
-            </Button>
+            </button>
           )}
         </div>
       </main>
@@ -282,19 +314,17 @@ export default function SetupPage() {
 
 function Step({
   n,
-  active,
   title,
   children,
 }: {
   n: number;
-  active: boolean;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className={active ? "" : "opacity-50"}>
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] text-accent-foreground">
+    <div>
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[#202124]">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#e8f0fe] text-[11px] text-[#1a73e8] font-bold">
           {n}
         </span>
         {title}

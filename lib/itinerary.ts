@@ -1,3 +1,4 @@
+import { getCurrency } from "./cities";
 import { haversineKm } from "./utils";
 
 const CITY_TRANSIT: Record<
@@ -6,18 +7,42 @@ const CITY_TRANSIT: Record<
 > = {
   london: { metroName: "Tube", busName: "Bus", metroFare: 2.8, busFare: 1.75 },
   paris: { metroName: "Métro", busName: "Bus", metroFare: 1.8, busFare: 1.8 },
-  barcelona: { metroName: "Metro", busName: "Bus", metroFare: 1.1, busFare: 1.1 },
+  barcelona: {
+    metroName: "Metro",
+    busName: "Bus",
+    metroFare: 1.1,
+    busFare: 1.1,
+  },
   rome: { metroName: "Metro", busName: "Bus", metroFare: 1.5, busFare: 1.5 },
-  amsterdam: { metroName: "Metro", busName: "Tram", metroFare: 3.2, busFare: 3.2 },
+  amsterdam: {
+    metroName: "Metro",
+    busName: "Tram",
+    metroFare: 3.2,
+    busFare: 3.2,
+  },
   tokyo: { metroName: "Metro", busName: "Bus", metroFare: 2.0, busFare: 1.5 },
-  "new york": { metroName: "Subway", busName: "Bus", metroFare: 2.9, busFare: 2.9 },
+  "new york": {
+    metroName: "Subway",
+    busName: "Bus",
+    metroFare: 2.9,
+    busFare: 2.9,
+  },
   dubai: { metroName: "Metro", busName: "Bus", metroFare: 2.0, busFare: 1.5 },
   singapore: { metroName: "MRT", busName: "Bus", metroFare: 1.5, busFare: 1.2 },
   sydney: { metroName: "Train", busName: "Bus", metroFare: 3.5, busFare: 2.5 },
-  delhi: { metroName: "Metro", busName: "Bus", metroFare: 1.0, busFare: 0.5 },
+  delhi: {
+    metroName: "Delhi Metro",
+    busName: "DTC Bus",
+    metroFare: 0.35,
+    busFare: 0.2,
+  },
 };
 
-export function enforceTransportModes(parsed: any, city: string, travelStyle: string): any {
+export function enforceTransportModes(
+  parsed: any,
+  city: string,
+  travelStyle: string,
+): any {
   const transit = CITY_TRANSIT[city.toLowerCase()] ?? {
     metroName: "Metro",
     busName: "Bus",
@@ -58,6 +83,8 @@ export function enforceTransportModes(parsed: any, city: string, travelStyle: st
         correctedMode = "walk";
         correctedFare = 0;
       }
+
+      if (currentMode === "ferry") return stop;
 
       return {
         ...stop,
@@ -170,11 +197,12 @@ STRICT TRANSPORT RULES:
 5. Public style: always most direct transit, never walk over 800m.
 6. Mixed style: walk under 800m only, transit for everything else.
 7. Metro/tube: line = real line name (e.g. "Central Line"). from_stop and to_stop = real station names.
-8. Bus: line = real route number (e.g. "15", "RV1"). from_stop = stop near origin. to_stop = stop near destination.
-9. Never leave line, from_stop, to_stop as null for bus or metro.
-10. fare = actual fare in GBP. London Tube = £2.80, Paris Metro = £1.80.
-11. First stop each day: mode = "start", fare = 0, line/from_stop/to_stop = null.
-12. Order stops geographically — minimize backtracking. Route must never cross itself.`;
+8. Bus: line = real route number only, no word "Bus" (e.g. "15", "N29", "RV1" in London — "15" not "Bus 15"). from_stop = exact name of nearest bus stop to origin. to_stop = exact name of nearest bus stop to destination. Both are required — never null for bus mode.
+9. Metro: line = line name without word "Metro" (e.g. "Central Line" not "Metro Central Line"). from_stop and to_stop = exact station names. Both are required — never null for metro mode.
+10. Ferry/boat: if travel between stops requires a ferry, boat, or water taxi, use mode = "ferry". line = ferry route name. from_stop = departure pier name. to_stop = arrival pier name. This applies in Sydney (Manly Ferry), Amsterdam (GVB Ferry), Singapore (bumboats), etc. Never classify ferry as metro, bus, or train.
+11. fare = actual fare in LOCAL currency of the city (not GBP unless city is London). Tokyo fares in ¥, Paris in €, New York in $, etc.
+12. First stop each day: mode = "start", fare = 0, line/from_stop/to_stop = null.
+13. Order stops geographically — minimize backtracking. Route must never cross itself.`;
 
 export function buildUserPrompt(
   city: string,
@@ -185,7 +213,7 @@ export function buildUserPrompt(
 ): string {
   const budgetLabel: Record<string, string> = {
     budget: "budget (under £50/day)",
-    mid: "mid-range (£50–£150/day)",
+    mid: "mid-range ($50–£150/day)",
     comfort: "comfort (£150+/day)",
   };
   const styleLabel: Record<string, string> = {
@@ -207,6 +235,7 @@ Requirements:
 - Use accurate lat/lng coordinates for every stop in ${city}
 - daily_total_cost = sum of all entry_cost + all transport fares for that day
 - trip_total_cost = sum of all daily_total_cost values
+- Use ${getCurrency(city).code} (${getCurrency(city).symbol}) for all monetary values including fares and entry costs.
 
 CRITICAL GEOGRAPHIC RULE: Sort stops so each consecutive pair is the nearest unvisited stop. The route must never cross itself. Split far-apart must-visit places across different days.`;
 }

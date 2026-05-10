@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -24,50 +24,137 @@
     --radius: 0.5rem;
     --sidebar-bg: #0f172a;
     --sidebar-fg: #f8fafc;
+  } */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --primary: 217 89% 37%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 89% 37%;
+    --radius: 0.25rem;
+    --sidebar-bg: #ffffff;
+    --sidebar-fg: #202124;
+    --google-blue: #1a73e8;
+    --google-blue-light: #e8f0fe;
+    --google-text: #202124;
+    --google-text-secondary: #5f6368;
+    --google-border: #dadce0;
+    --google-surface: #f1f3f4;
+    --google-red: #ea4335;
   }
 }
 
 @layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-/* Leaflet marker */
 .leaflet-marker-letter {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #4285f4;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #1a73e8;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  font-family: Inter, sans-serif;
+  font-family: "Google Sans", Roboto, sans-serif;
   border: 2px solid white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-  transition: transform 0.15s;
+}
+
+.leaflet-marker-letter span {
+  transform: rotate(45deg);
+  display: block;
 }
 
 .leaflet-marker-letter.active {
-  background: #1a56db;
-  transform: scale(1.2);
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.5);
+  background: #ea4335;
+  transform: rotate(-45deg) scale(1.2);
 }
 
-/* Fix Leaflet z-index conflict with Radix Dialog */
-.leaflet-pane { z-index: 4 !important; }
-.leaflet-tile-pane { z-index: 2 !important; }
-.leaflet-overlay-pane { z-index: 4 !important; }
-.leaflet-shadow-pane { z-index: 5 !important; }
-.leaflet-marker-pane { z-index: 6 !important; }
-.leaflet-tooltip-pane { z-index: 7 !important; }
-.leaflet-popup-pane { z-index: 8 !important; }
-.leaflet-control { z-index: 8 !important; }
-.leaflet-top, .leaflet-bottom { z-index: 8 !important; }
+.leaflet-pane {
+  z-index: 4 !important;
+}
+.leaflet-tile-pane {
+  z-index: 2 !important;
+}
+.leaflet-overlay-pane {
+  z-index: 4 !important;
+}
+.leaflet-shadow-pane {
+  z-index: 5 !important;
+}
+.leaflet-marker-pane {
+  z-index: 6 !important;
+}
+.leaflet-tooltip-pane {
+  z-index: 7 !important;
+}
+.leaflet-popup-pane {
+  z-index: 8 !important;
+}
+.leaflet-control {
+  z-index: 8 !important;
+}
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 8 !important;
+}
 
-[data-radix-dialog-overlay] { z-index: 9998 !important; position: fixed !important; }
-[data-radix-dialog-content] { z-index: 9999 !important; position: fixed !important; }
+[data-radix-dialog-overlay] {
+  z-index: 9998 !important;
+  position: fixed !important;
+}
+[data-radix-dialog-content] {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+.transport-connector {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0 2px 12px;
+  margin: 2px 0;
+  font-size: 12px;
+  color: #5f6368;
+  border-left: 2px solid #dadce0;
+  margin-left: 28px;
+}
+
+/* Fix letter inside blue circle */
+.stop-letter {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  font-family: "Google Sans", Roboto, sans-serif;
+}
