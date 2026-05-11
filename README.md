@@ -22,6 +22,7 @@ First-time travelers spend 2–3 days across 5 apps to plan a trip. Google Maps 
 - **Map:** Leaflet.js + OpenStreetMap
 - **AI:** Anthropic Claude API (claude-haiku-4-5)
 - **Database:** Supabase
+- **Redis Rate Limit:** Upstash
 - **Deployment:** Vercel
 
 ## Setup
@@ -38,7 +39,7 @@ npm run dev
 ## Environment Variables
 
 ```
-ANTHROPIC_API_KEY=          # From console.anthropic.com
+GEMINI_API_KEY=          # From console.anthropic.com
 NEXT_PUBLIC_SUPABASE_URL=   # From Supabase project settings
 NEXT_PUBLIC_SUPABASE_ANON_KEY= # From Supabase project settings
 ```

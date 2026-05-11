@@ -25,7 +25,6 @@ const styles = [
 const cities = [
   { name: "London", flag: "🇬🇧" },
   { name: "Paris", flag: "🇫🇷" },
-  { name: "Barcelona", flag: "🇪🇸" },
   { name: "Rome", flag: "🇮🇹" },
   { name: "Amsterdam", flag: "🇳🇱" },
   { name: "Tokyo", flag: "🇯🇵" },

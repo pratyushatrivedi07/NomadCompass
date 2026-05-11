@@ -7,12 +7,6 @@ const CITY_TRANSIT: Record<
 > = {
   london: { metroName: "Tube", busName: "Bus", metroFare: 2.8, busFare: 1.75 },
   paris: { metroName: "Métro", busName: "Bus", metroFare: 2.1, busFare: 2.1 },
-  barcelona: {
-    metroName: "Metro",
-    busName: "Bus",
-    metroFare: 1.1,
-    busFare: 1.1,
-  },
   rome: { metroName: "Metro", busName: "Bus", metroFare: 1.5, busFare: 1.5 },
   amsterdam: {
     metroName: "Metro",
@@ -170,8 +164,6 @@ export function parseItineraryJson(content: string): any {
   }
 }
 
-// export const SYSTEM_PROMPT = `You are a travel planning assistant. Return ONLY a valid JSON object. No markdown, no code fences, no explanation. Start with { and end with }.
-
 // JSON structure:
 // {
 //   "city": "string",
@@ -253,26 +245,49 @@ export function parseItineraryJson(content: string): any {
 // - 4–6 stops per day, exactly 1 food stop per day at meal time
 // - daily_total_cost = sum of all entry_cost + all fares for that day`;
 
-export const SYSTEM_PROMPT = `You are a travel planning assistant. Return ONLY valid JSON. No markdown, no code fences. Start with { end with }.
+// export const SYSTEM_PROMPT = `You are a travel planning assistant. Return ONLY valid JSON. No markdown, no code fences. Start with { end with }.
 
-JSON structure: city (string), days (array of: day int, theme string, stops array, daily_total_cost float), trip_total_cost float.
-Each stop: name, type (attraction|food|activity), lat, lng, duration_mins, entry_cost, notes (1 sentence), transport_from_previous (mode, line, from_stop, to_stop, fare, walk_to_stop_mins).
+// JSON structure: city (string), days (array of: day int, theme string, stops array, daily_total_cost float), trip_total_cost float.
+// Each stop: name, type (attraction|food|activity), lat, lng, duration_mins, entry_cost, notes (1 sentence), transport_from_previous (mode, line, from_stop, to_stop, fare, walk_to_stop_mins).
 
-TRANSPORT RULES:
-- Under 1km: walk only. fare=0, line=null, stops=null.
-- 1–4km: bus if real route confirmed, else metro.
-- Over 4km: metro or train.
-- Ferry: use for water crossings only.
-- First stop per day: mode="start", fare=0, line=null, stops=null.
-- Bus line = route number only (e.g. "15" not "Bus 15"). Must be real.
-- Metro line = line name only (e.g. "Central Line" not "Metro Central Line"). Must be real.
-- from_stop and to_stop = real stop/station names. Required for bus and metro.
-- If real route unknown: use walk (under 1km) or metro without line details.
-- All fares in local city currency.
-- Never walk over 1km. Never invent routes.
-- Order stops geographically — no route crossings.
-- 4–6 stops/day, exactly 1 food stop at meal time.
-- daily_total_cost = sum of entry_cost + fares.`;
+// TRANSPORT RULES:
+// - Under 1km: walk only. fare=0, line=null, stops=null.
+// - 1–4km: bus if real route confirmed, else metro.
+// - Over 4km: metro or train.
+// - Ferry: use for water crossings only.
+// - First stop per day: mode="start", fare=0, line=null, stops=null.
+// - Bus line = route number only (e.g. "15" not "Bus 15"). Must be real.
+// - Metro line = line name only (e.g. "Central Line" not "Metro Central Line"). Must be real.
+// - from_stop and to_stop = real stop/station names. Required for bus and metro.
+// - If real route unknown: use walk (under 1km) or metro without line details.
+// - All fares in local city currency.
+// - Never walk over 1km. Never invent routes.
+// - Order stops geographically — no route crossings.
+// - 4–6 stops/day, exactly 1 food stop at meal time.
+// - daily_total_cost = sum of entry_cost + fares.`;
+
+export const SYSTEM_PROMPT = `You are a high-performance travel logistics engine (May 2026).
+Your goal is to provide a dense, geographically optimized itinerary in valid JSON.
+
+### USER CONSTRAINTS:
+1. **Must-Visit Places**: You MUST prioritize and include all "mustVisit" locations provided by the user in the itinerary.
+2. **Transit Preference**: Prioritize Public Transport (Metro/Bus) over Cabs. Only use "cab" if no plausible transit route exists.
+
+### TRANSPORT HIERARCHY:
+1. **START**: First stop of each day. (mode: "start", fare: 0, others: null).
+2. **WALK**: Use for distances < 1km. (mode: "walk", fare: 0, others: null).
+3. **PUBLIC**: Use for distances > 1km ONLY if a real-world route number/name is identified.
+   - 'line': Specific number/name (e.g. "15", "District Line"). No "Bus" or "Metro" in string.
+   - 'from_stop' & 'to_stop': Exact official station/stop names.
+4. **CAB**: Use ONLY if no specific public transit route can be identified.
+   - mode: "cab", line: "Uber/Taxi", from_stop: "Current Location", to_stop: "Destination".
+
+### LOGISTICS:
+- **Density**: Exactly 5-6 stops per day.
+- **Food**: Exactly 1 stop per day must be "type": "food" at meal time.
+- **Brevity**: 'notes' must be under 10 words. 'theme' under 3 words.
+- **Geography**: Sequence stops in a logical one-way path. No "zig-zagging".
+- **Currency**: All costs in local currency.`;
 
 export function buildUserPrompt(
   city: string,

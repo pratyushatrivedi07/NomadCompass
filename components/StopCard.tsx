@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   Activity,
   Sailboat,
+  Car,
 } from "lucide-react";
 import type { Stop } from "@/lib/types";
 
@@ -17,6 +18,7 @@ const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function transportIcon(mode?: string) {
   const m = (mode ?? "").toLowerCase();
   if (m.includes("walk")) return Footprints;
+  if (m.includes("cab") || m.includes("taxi") || m.includes("uber")) return Car;
   if (
     m.includes("metro") ||
     m.includes("tube") ||
@@ -73,22 +75,50 @@ export function StopCard({
               {t!.walk_to_stop_mins ?? 10} min walk
             </span>
           ) : (
+            // <span className="text-[#5f6368] truncate">
+            //   {/* Mode label */}
+            //   <span className="font-medium">{cap(t!.mode)}</span>
+            //   {/* Line only if it's real and doesn't repeat the mode word */}
+            //   {t!.line &&
+            //     t!.line.toLowerCase() !== (t!.mode ?? "").toLowerCase() && (
+            //       <span> {t!.line}</span>
+            //     )}
+            //   {/* Stops */}
+            //   {t!.from_stop && t!.to_stop && (
+            //     <span className="text-[#9aa0a6]">
+            //       {" "}
+            //       · {t!.from_stop} → {t!.to_stop}
+            //     </span>
+            //   )}
+            //   {/* Fare */}
+            //   {fare > 0 && (
+            //     <span className="text-[#9aa0a6]">
+            //       {" "}
+            //       · {currencySymbol}
+            //       {Number(fare).toFixed(2)}
+            //     </span>
+            //   )}
+            // </span>
             <span className="text-[#5f6368] truncate">
-              {/* Mode label */}
+              {/* Mode label: Capitalized */}
               <span className="font-medium">{cap(t!.mode)}</span>
-              {/* Line only if it's real and doesn't repeat the mode word */}
+
+              {/* Line: Show only if it exists and isn't "null" or equal to mode */}
               {t!.line &&
-                t!.line.toLowerCase() !== (t!.mode ?? "").toLowerCase() && (
+                t!.line !== "null" &&
+                t!.line.toLowerCase() !== t!.mode.toLowerCase() && (
                   <span> {t!.line}</span>
                 )}
-              {/* Stops */}
-              {t!.from_stop && t!.to_stop && (
+
+              {/* From/To: Show only if both exist and aren't "null" */}
+              {t!.from_stop && t!.to_stop && t!.from_stop !== "null" && (
                 <span className="text-[#9aa0a6]">
                   {" "}
                   · {t!.from_stop} → {t!.to_stop}
                 </span>
               )}
-              {/* Fare */}
+
+              {/* Fare: Always fixed to 2 decimals if > 0 */}
               {fare > 0 && (
                 <span className="text-[#9aa0a6]">
                   {" "}

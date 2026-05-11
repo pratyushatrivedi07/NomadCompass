@@ -1,7 +1,6 @@
 export const CITY_CENTERS: Record<string, [number, number]> = {
   london: [51.5074, -0.1278],
   paris: [48.8566, 2.3522],
-  barcelona: [41.3851, 2.1734],
   rome: [41.9028, 12.4964],
   amsterdam: [52.3676, 4.9041],
   tokyo: [35.6762, 139.6503],
@@ -24,7 +23,6 @@ export function cityCenter(city: string): {
 export const CITY_CURRENCY: Record<string, { symbol: string; code: string }> = {
   london: { symbol: "£", code: "GBP" },
   paris: { symbol: "€", code: "EUR" },
-  barcelona: { symbol: "€", code: "EUR" },
   rome: { symbol: "€", code: "EUR" },
   amsterdam: { symbol: "€", code: "EUR" },
   tokyo: { symbol: "¥", code: "JPY" },
@@ -49,11 +47,6 @@ export const CITY_BUDGET_RANGES: Record<
     comfort: "£150+/day",
   },
   paris: { budget: "Under €60/day", mid: "€60–€180/day", comfort: "€180+/day" },
-  barcelona: {
-    budget: "Under €40/day",
-    mid: "€40–€120/day",
-    comfort: "€120+/day",
-  },
   rome: { budget: "Under €45/day", mid: "€45–€130/day", comfort: "€130+/day" },
   amsterdam: {
     budget: "Under €60/day",

@@ -5,3 +5,4 @@ node_modules/
 *.log
 dist/
 .DS_Store
+/app/api/generate-itinerary/route2.ts
