@@ -1,17 +1,17 @@
-# JourneyGenie — AI-Powered Tourist Itinerary Planner
+# JourneyGenie: AI-Powered Tourist Itinerary Planner
 
-A product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travelers.
+A product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travellers.
 
 ## The Problem
 
-First-time travelers spend 2–3 days across 5 apps to plan a trip. Google Maps navigates cities but doesn't help you plan them.
+First-time travellers spend 2–3 days across 5 apps to plan a trip. Google Maps navigates cities but doesn't help you plan them.
 
 ## What This Does
 
-- Generates a day-by-day itinerary for any city using AI (Claude)
+- Generates a day-by-day itinerary for any city using AI (Gemini)
 - Shows which bus/train to take between each stop, with stop names and fare
 - Filters recommendations by budget tier (Budget / Mid / Comfort)
-- Plots stops on a live map with lettered markers and color-coded routes
+- Plots stops on a live map with lettered markers and colour-coded routes
 - Lets you remove stops, add places via search, and save your itinerary
 - Shareable itinerary links
 
@@ -20,7 +20,7 @@ First-time travelers spend 2–3 days across 5 apps to plan a trip. Google Maps 
 - **Framework:** Next.js 15 (App Router)
 - **Styling:** Tailwind CSS
 - **Map:** Leaflet.js + OpenStreetMap
-- **AI:** Anthropic Claude API (claude-haiku-4-5)
+- **AI:** Gemini Fast API
 - **Database:** Supabase
 - **Redis Rate Limit:** Upstash
 - **Deployment:** Vercel
