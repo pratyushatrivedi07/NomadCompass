@@ -95,7 +95,7 @@ export default function SharedTripPage() {
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <JourneyGenieLogo />
-              <span className="text-sm font-medium text-[#1a73e8]">Maps</span>
+              <span className="text-sm font-medium text-[#1a73e8]">ExploreAI</span>
             </div>
             <h1 className="text-base font-medium text-[#202124] capitalize">
               {meta?.city}
