@@ -46,7 +46,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=  # From Supabase project settings
 
 ## Live Demo
 
-[journeyGenie.vercel.app](https://journey-genie-five.vercel.app/)
+[exploreai.vercel.app](explore-ai-maps.vercel.app)
 
 ## PRD & Case Study
 
