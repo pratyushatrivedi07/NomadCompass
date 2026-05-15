@@ -3,11 +3,11 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "JourneyGenie — AI-powered tourist itinerary planner",
+  title: "ExploreAI: AI-powered tourist itinerary planner",
   description:
-    "Plan a multi-day trip in seconds. Tell JourneyGenie your city, budget and style — get a mapped itinerary.",
+    "Plan a multi-day trip in seconds. Tell ExploreAI your city, budget and style — get a mapped itinerary.",
   openGraph: {
-    title: "JourneyGenie — AI itinerary planner",
+    title: "ExploreAI: AI itinerary planner",
     description: "AI-built day-by-day itineraries with maps and transit.",
   },
 };

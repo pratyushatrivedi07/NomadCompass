@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Map as MapIcon,
   ChevronLeft,
   Plus,
   Save,
@@ -23,10 +22,11 @@ import {
 } from "@/components/ui/dialog";
 import { StopCard } from "@/components/StopCard";
 import type { Itinerary, Stop } from "@/lib/types";
-import { cityCenter, getCurrency } from "@/lib/cities";
+import { getCurrency } from "@/lib/cities";
 import { supabase } from "@/lib/supabase";
 import { haversineKm } from "@/lib/utils";
 import { toast } from "sonner";
+import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
 
 const JourneyGenie = dynamic(
   () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
@@ -263,7 +263,7 @@ export default function TripPage() {
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <MapIcon className="h-3.5 w-3.5 text-[#1a73e8] shrink-0" />
+              <JourneyGenieLogo />
               <span className="text-xs font-medium text-[#1a73e8]">Maps</span>
             </div>
             <h1 className="text-[15px] font-medium text-[#202124] capitalize leading-tight truncate">

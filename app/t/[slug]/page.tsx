@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Map as MapIcon, Loader2, ChevronLeft } from "lucide-react";
+import { Loader2, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrency } from "@/lib/cities";
 import type { Itinerary } from "@/lib/types";
 import { StopCard } from "@/components/StopCard";
+import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
 
 const JourneyGenie = dynamic(
   () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
@@ -93,7 +94,7 @@ export default function SharedTripPage() {
           </Link>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <MapIcon className="h-4 w-4 text-[#1a73e8]" />
+              <JourneyGenieLogo />
               <span className="text-sm font-medium text-[#1a73e8]">Maps</span>
             </div>
             <h1 className="text-base font-medium text-[#202124] capitalize">

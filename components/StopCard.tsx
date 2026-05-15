@@ -18,7 +18,8 @@ const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function transportIcon(mode?: string) {
   const m = (mode ?? "").toLowerCase();
   if (m.includes("walk")) return Footprints;
-  if (m.includes("cab") || m.includes("taxi") || m.includes("uber")) return Car;
+  if (m.includes("ferry")) return Sailboat;
+  if (m.includes("cab") || m.includes("taxi")) return Car;
   if (
     m.includes("metro") ||
     m.includes("tube") ||
@@ -28,8 +29,6 @@ function transportIcon(mode?: string) {
     m.includes("mrt")
   )
     return Train;
-  if (m.includes("ferry") || m.includes("boat") || m.includes("water"))
-    return Sailboat;
   return Bus;
 }
 
@@ -75,30 +74,6 @@ export function StopCard({
               {t!.walk_to_stop_mins ?? 10} min walk
             </span>
           ) : (
-            // <span className="text-[#5f6368] truncate">
-            //   {/* Mode label */}
-            //   <span className="font-medium">{cap(t!.mode)}</span>
-            //   {/* Line only if it's real and doesn't repeat the mode word */}
-            //   {t!.line &&
-            //     t!.line.toLowerCase() !== (t!.mode ?? "").toLowerCase() && (
-            //       <span> {t!.line}</span>
-            //     )}
-            //   {/* Stops */}
-            //   {t!.from_stop && t!.to_stop && (
-            //     <span className="text-[#9aa0a6]">
-            //       {" "}
-            //       · {t!.from_stop} → {t!.to_stop}
-            //     </span>
-            //   )}
-            //   {/* Fare */}
-            //   {fare > 0 && (
-            //     <span className="text-[#9aa0a6]">
-            //       {" "}
-            //       · {currencySymbol}
-            //       {Number(fare).toFixed(2)}
-            //     </span>
-            //   )}
-            // </span>
             <span className="text-[#5f6368] truncate">
               {/* Mode label: Capitalized */}
               <span className="font-medium">{cap(t!.mode)}</span>

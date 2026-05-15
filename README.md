@@ -1,4 +1,4 @@
-# JourneyGenie: AI-Powered Tourist Itinerary Planner
+# ExploreAI: AI-Powered Tourist Itinerary Planner
 
 A product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travellers.
 
@@ -39,9 +39,9 @@ npm run dev
 ## Environment Variables
 
 ```
-GEMINI_API_KEY=          # From console.anthropic.com
-NEXT_PUBLIC_SUPABASE_URL=   # From Supabase project settings
-NEXT_PUBLIC_SUPABASE_ANON_KEY= # From Supabase project settings
+GEMINI_API_KEY=                 # From console.anthropic.com
+NEXT_PUBLIC_SUPABASE_URL=       # From Supabase project settings
+NEXT_PUBLIC_SUPABASE_ANON_KEY=  # From Supabase project settings
 ```
 
 ## Live Demo

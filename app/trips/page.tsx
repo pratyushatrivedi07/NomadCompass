@@ -41,31 +41,6 @@ export default function TripsPage() {
     fetchTrips();
   }, []);
 
-  // const deleteTrip = async (id: string) => {
-  //   if (!confirm("Delete this trip?")) return;
-  //   setDeleting(id);
-  //   await supabase.from("trips").delete().eq("id", id);
-
-  //   // Also clear from session storage if it's the current trip
-  //   try {
-  //     const raw = sessionStorage.getItem("journeygenie");
-  //     if (raw) {
-  //       const current = JSON.parse(raw);
-  //       // Find the trip being deleted to compare
-  //       const deletedTrip = trips.find((t) => t.id === id);
-  //       if (deletedTrip && current.meta?.city === deletedTrip.city) {
-  //         sessionStorage.removeItem("journeygenie:current");
-  //       }
-  //     }
-  //   } catch {
-  //     // silent fail
-  //   }
-
-  //   setTrips((prev) => prev.filter((t) => t.id !== id));
-  //   setDeleting(null);
-  //   toast.success("Trip deleted");
-  // };
-
   const deleteTrip = async (id: string) => {
     if (!confirm("Delete this trip?")) return;
 
@@ -116,7 +91,7 @@ export default function TripsPage() {
               className="text-lg font-medium text-[#202124]"
               style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
             >
-              JourneyGenie
+              ExploreAI
             </span>
           </Link>
           <Link
@@ -164,7 +139,7 @@ export default function TripsPage() {
               </div>
             ))}
           </div>
-        ) : trips.length === 0 ?  (
+        ) : trips.length === 0 ? (
           <div className="rounded-2xl border border-[#dadce0] bg-white p-12 text-center">
             <MapPin className="mx-auto mb-4 h-10 w-10 text-[#9aa0a6]" />
             <p className="text-[#5f6368] mb-4">No saved trips yet.</p>

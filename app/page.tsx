@@ -3,18 +3,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Loader2,
-  Backpack,
-  Hotel,
-  Plane,
-  Bus,
-  Footprints,
-  Shuffle,
-  ArrowRight,
-} from "lucide-react";
+import { Loader2, Bus, Footprints, Shuffle, ArrowRight } from "lucide-react";
 import { getBudgetRanges } from "@/lib/cities";
 import { toast } from "sonner";
+import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
 
 const styles = [
   { id: "public", icon: Bus, label: "Public Transport" },
@@ -42,6 +34,18 @@ const loadingMessages = [
   "Almost ready…",
 ];
 
+/**
+ * Merges a base className with a disabled-state class.
+ * Keeps all layout/border/text styles intact — just layers opacity + cursor on top.
+ * This fixes the bug where the ternary was replacing the whole className string,
+ * stripping border/bg/text styles from disabled buttons.
+ */
+function cx(base: string, extra?: string) {
+  return extra ? `${base} ${extra}` : base;
+}
+
+const DISABLED_OVERLAY = "opacity-50 cursor-not-allowed pointer-events-none";
+
 export default function SetupPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -56,6 +60,7 @@ export default function SetupPage() {
   const [mustVisit, setMustVisit] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const budgetRanges = useMemo(() => getBudgetRanges(city), [city]);
   const budgets = [
@@ -76,12 +81,15 @@ export default function SetupPage() {
   const submit = async () => {
     if (!city.trim() || !budget || !travelStyle) return;
     setLoading(true);
+    setIsGenerating(true);
+
     try {
       const mustVisitList = mustVisit
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
         .slice(0, 10);
+
       const res = await fetch("/api/generate-itinerary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,12 +101,37 @@ export default function SetupPage() {
           mustVisit: mustVisitList,
         }),
       });
+
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
+
+        // ── spike: all Gemini models overloaded ──────────────────────────────
+        if (err.error === "spike" || res.status === 503) {
+          toast.error(
+            "AI models are experiencing a spike in traffic. Please try again in a moment.",
+            {
+              duration: 12_000, // 12 s — prominent but not forever
+              id: "gemini-spike", // deduplicate if user hammers the button
+            },
+          );
+          return; // keep form unlocked so they can retry
+        }
+
+        // ── rate limit ───────────────────────────────────────────────────────
+        if (res.status === 429) {
+          toast.error(
+            "You've hit today's generation limit. Come back tomorrow or try again later.",
+            { duration: 12_000 },
+          );
+          return;
+        }
+
+        // ── generic error ────────────────────────────────────────────────────
         throw new Error(
-          err.error ?? "Couldn't generate itinerary — try again.",
+          err.message ?? "Couldn't generate itinerary — please try again.",
         );
       }
+
       const result = await res.json();
       sessionStorage.setItem(
         "journeygenie:current",
@@ -116,11 +149,14 @@ export default function SetupPage() {
       router.push("/trip");
     } catch (e) {
       toast.error(
-        e instanceof Error
-          ? e.message
-          : "Couldn't generate itinerary — try again.",
+        `${e instanceof Error ? e.message : "Couldn't generate itinerary — please try again."}`,
+        { duration: 12_000 },
       );
+    } finally {
+      // Re-enable the form whether we errored or navigated away.
+      // On success, the router.push unmounts this component anyway.
       setLoading(false);
+      setIsGenerating(false);
     }
   };
 
@@ -133,12 +169,7 @@ export default function SetupPage() {
       <header className="border-b border-[#dadce0] bg-white sticky top-0 z-10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
-            <svg height="22" viewBox="0 0 24 24" width="22">
-              <path
-                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-                fill="#1a73e8"
-              />
-            </svg>
+            <JourneyGenieLogo />
             <span className="text-lg font-medium text-[#202124]">
               JourneyGenie
             </span>
@@ -163,8 +194,8 @@ export default function SetupPage() {
         </div>
 
         <div className="space-y-6 rounded-2xl border border-[#dadce0] bg-white p-8 shadow-sm">
-          {/* Step 1 — City */}
-          <Step n={1} title="Where are you going?">
+          {/* ── Step 1 — City ─────────────────────────────────────────────── */}
+          <Step n={1} title="Where are you going?" locked={isGenerating}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {cities.map((c) => (
                 <button
@@ -174,11 +205,18 @@ export default function SetupPage() {
                     setBudget(null);
                     setStep((s) => Math.max(s, 2));
                   }}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
-                    city === c.name.toLowerCase()
-                      ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
-                      : "border-[#dadce0] text-[#202124] hover:bg-[#f1f3f4]"
-                  }`}
+                  disabled={isGenerating}
+                  className={cx(
+                    // ── base styles (always applied) ──
+                    `flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition
+                     ${
+                       city === c.name.toLowerCase()
+                         ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
+                         : "border-[#dadce0] text-[#202124] hover:bg-[#f1f3f4]"
+                     }`,
+                    // ── disabled overlay (layered on top, never replaces) ──
+                    isGenerating ? DISABLED_OVERLAY : undefined,
+                  )}
                 >
                   <span className="text-base">{c.flag}</span>
                   <span className="font-medium">{c.name}</span>
@@ -190,13 +228,17 @@ export default function SetupPage() {
             </p>
           </Step>
 
-          {/* Step 2 — Days */}
+          {/* ── Step 2 — Days ─────────────────────────────────────────────── */}
           {step >= 2 && (
-            <Step n={2} title="How many days?">
+            <Step n={2} title="How many days?" locked={isGenerating}>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setDays(Math.max(1, days - 1))}
-                  className="w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition"
+                  disabled={isGenerating}
+                  className={cx(
+                    "w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition",
+                    isGenerating ? DISABLED_OVERLAY : undefined,
+                  )}
                 >
                   −
                 </button>
@@ -205,11 +247,15 @@ export default function SetupPage() {
                 </div>
                 <button
                   onClick={() => setDays(Math.min(7, days + 1))}
-                  className="w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition"
+                  disabled={isGenerating}
+                  className={cx(
+                    "w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition",
+                    isGenerating ? DISABLED_OVERLAY : undefined,
+                  )}
                 >
                   +
                 </button>
-                {step === 2 && (
+                {step === 2 && !isGenerating && (
                   <button
                     onClick={() => setStep(3)}
                     className="ml-auto flex items-center gap-1 text-sm text-[#1a73e8] hover:underline"
@@ -221,9 +267,9 @@ export default function SetupPage() {
             </Step>
           )}
 
-          {/* Step 3 — Budget */}
+          {/* ── Step 3 — Budget ───────────────────────────────────────────── */}
           {step >= 3 && (
-            <Step n={3} title="Daily budget">
+            <Step n={3} title="Daily budget" locked={isGenerating}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {budgets.map((b) => (
                   <button
@@ -232,11 +278,16 @@ export default function SetupPage() {
                       setBudget(b.id);
                       setStep((s) => Math.max(s, 4));
                     }}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      budget === b.id
-                        ? "border-[#1a73e8] bg-[#e8f0fe]"
-                        : "border-[#dadce0] hover:bg-[#f1f3f4]"
-                    }`}
+                    disabled={isGenerating}
+                    className={cx(
+                      `rounded-xl border p-4 text-left transition
+                       ${
+                         budget === b.id
+                           ? "border-[#1a73e8] bg-[#e8f0fe]"
+                           : "border-[#dadce0] hover:bg-[#f1f3f4]"
+                       }`,
+                      isGenerating ? DISABLED_OVERLAY : undefined,
+                    )}
                   >
                     <div className="mb-2 text-2xl">{b.emoji}</div>
                     <div className="font-medium text-[#202124]">{b.label}</div>
@@ -247,9 +298,9 @@ export default function SetupPage() {
             </Step>
           )}
 
-          {/* Step 4 — Travel style */}
+          {/* ── Step 4 — Travel style ─────────────────────────────────────── */}
           {step >= 4 && (
-            <Step n={4} title="Travel style">
+            <Step n={4} title="Travel style" locked={isGenerating}>
               <div className="grid grid-cols-3 gap-2">
                 {styles.map((s) => {
                   const Icon = s.icon;
@@ -260,11 +311,16 @@ export default function SetupPage() {
                         setTravelStyle(s.id);
                         setStep((cs) => Math.max(cs, 5));
                       }}
-                      className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition ${
-                        travelStyle === s.id
-                          ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
-                          : "border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4]"
-                      }`}
+                      disabled={isGenerating}
+                      className={cx(
+                        `flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition
+                         ${
+                           travelStyle === s.id
+                             ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
+                             : "border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4]"
+                         }`,
+                        isGenerating ? DISABLED_OVERLAY : undefined,
+                      )}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{s.label}</span>
@@ -275,25 +331,35 @@ export default function SetupPage() {
             </Step>
           )}
 
-          {/* Step 5 — Must visit */}
+          {/* ── Step 5 — Must visit ───────────────────────────────────────── */}
           {step >= 5 && (
-            <Step n={5} title="Any must-visit places? (optional)">
+            <Step
+              n={5}
+              title="Any must-visit places? (optional)"
+              locked={isGenerating}
+            >
               <input
                 value={mustVisit}
                 onChange={(e) => setMustVisit(e.target.value)}
                 placeholder="e.g. Tower of London, Borough Market"
-                className="w-full border border-[#dadce0] rounded-xl px-4 py-3 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
+                disabled={isGenerating}
+                className={cx(
+                  "w-full border border-[#dadce0] rounded-xl px-4 py-3 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition",
+                  isGenerating
+                    ? "opacity-50 cursor-not-allowed bg-[#f1f3f4]"
+                    : undefined,
+                )}
               />
               <p className="mt-1.5 text-xs text-[#9aa0a6]">Comma separated.</p>
             </Step>
           )}
 
-          {/* Submit */}
+          {/* ── Submit ────────────────────────────────────────────────────── */}
           {step >= 4 && budget && travelStyle && (
             <button
               onClick={submit}
               disabled={loading || !city.trim()}
-              className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-3 rounded-full transition disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-3 rounded-full transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -314,10 +380,12 @@ export default function SetupPage() {
 function Step({
   n,
   title,
+  locked,
   children,
 }: {
   n: number;
   title: string;
+  locked?: boolean;
   children: React.ReactNode;
 }) {
   return (

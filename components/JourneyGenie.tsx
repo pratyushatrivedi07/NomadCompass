@@ -28,16 +28,9 @@ function normalizeMode(
     return "metro";
   if (m.includes("ferry") || m.includes("boat") || m.includes("water"))
     return "ferry";
-  if (
-    m.includes("cab") ||
-    m.includes("taxi") ||
-    m.includes("uber") ||
-    m.includes("car")
-  )
-    return "cab";
   if (m.includes("bus") || m.includes("tram")) return "bus";
   if (m.includes("train") || m.includes("rail")) return "train";
-
+  if (m.includes("cab") || m.includes("taxi")) return "cab";
   return "walk";
 }
 
@@ -47,15 +40,15 @@ function getPolylineStyle(mode: string) {
     case "metro":
       return { color: "#E040FB", weight: 6, opacity: 1, dashArray: undefined };
     case "bus":
-      return { color: "#d40058", weight: 5, opacity: 1, dashArray: undefined };
+      return { color: "#ffae00", weight: 8, opacity: 1, dashArray: undefined };
     case "train":
       return { color: "#FF6D00", weight: 6, opacity: 1, dashArray: undefined };
     case "ferry":
-      return { color: "#0015ff", weight: 5, opacity: 1, dashArray: "6, 8" };
+      return { color: "#0116ae", weight: 6, opacity: 1, dashArray: "8, 10" };
     case "cab":
-      return { color: "#8c00ff", weight: 5, opacity: 1, dashArray: undefined };
+      return { color: "#6e0ac5", weight: 6, opacity: 1, dashArray: undefined };
     default:
-      return { color: "#056f3c", weight: 5, opacity: 1, dashArray: "6, 10" };
+      return { color: "#046f3c", weight: 6, opacity: 1, dashArray: "8, 10" };
   }
 }
 
@@ -110,11 +103,11 @@ export function JourneyGenie({ stops, activeIndex, onSelect, city }: Props) {
       const legendHtml = `
         <div style="background:rgba(0,0,0,0.85);border-radius:8px;padding:8px 12px;font-size:11px;color:#fff;line-height:2;font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.15)">
           <div><span style="display:inline-block;width:24px;height:4px;background:#E040FB;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Metro</div>
-          <div><span style="display:inline-block;width:24px;height:4px;background:#d40058;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Bus</div>
+          <div><span style="display:inline-block;width:24px;height:4px;background:#ffae00;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Bus</div>
           <div><span style="display:inline-block;width:24px;height:4px;background:#FF6D00;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Train</div>
-          <div><span style="display:inline-block;width:24px;height:4px;background:#8c00ff;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Cab</div>
-          <div style="display:flex;align-items:center"><span style="display:inline-block;width:24px;border-top:3px dashed #056f3c;margin-right:8px"></span>Walk</div>
-          <div><span style="display:inline-block;width:24px;height:4px;background:#0015ff;margin-right:8px;vertical-align:middle;border-radius:2px;border-top:3px dashed #0015ff;background:none"></span>Ferry</div>
+          <div><span style="display:inline-block;width:24px;height:4px;background:#6e0ac5;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Cab</div>
+          <div style="display:flex;align-items:center"><span style="display:inline-block;width:24px;border-top:3px dashed #058a4a;margin-right:8px"></span>Walk</div>
+          <div><span style="display:inline-block;width:24px;height:4px;background:#0116ae;margin-right:8px;vertical-align:middle;border-radius:2px;border-top:3px dashed #0116ae;background:none"></span>Ferry</div>
         </div>`;
 
       const Legend = L.Control.extend({

@@ -8,7 +8,6 @@ import {
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
-// 1. Input Validation Schema
 const InputSchema = z.object({
   city: z.string().min(1).max(120),
   days: z.number().int().min(1).max(7),
@@ -17,158 +16,219 @@ const InputSchema = z.object({
   mustVisit: z.array(z.string().max(120)).max(10).default([]),
 });
 
-// 2. Initialize Upstash Redis
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// 3. Define Rate Limits
-// Protects your global API Key quota (Free tier is 1,000/day)
 const globalLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.fixedWindow(500, "24 h"),
+  limiter: Ratelimit.fixedWindow(200, "24 h"),
+  prefix: "global",
 });
 
-// Protects you from a single user exhausting your credits
 const ipLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.fixedWindow(3, "24 h"),
+  limiter: Ratelimit.fixedWindow(5, "24 h"),
+  prefix: "ip",
 });
 
-export async function POST(req: NextRequest) {
+// Extract JSON from Gemini response — handles both structured output and text
+function extractJson(candidate: any): any {
+  // Path 1: structured output (response_mime_type: application/json)
+  // Gemini returns it in parts[0].text as a JSON string
+  const text = candidate?.content?.parts?.[0]?.text;
+
+  if (text) {
+    const cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // Try to recover truncated JSON
+      const start = cleaned.indexOf("{");
+      if (start === -1) throw new Error("No JSON object found in response");
+      const substr = cleaned.substring(start);
+
+      let depth = 0;
+      let lastSafe = 0;
+      for (let i = 0; i < substr.length; i++) {
+        if (substr[i] === "{" || substr[i] === "[") depth++;
+        if (substr[i] === "}" || substr[i] === "]") {
+          depth--;
+          if (depth <= 1) lastSafe = i + 1;
+        }
+      }
+      const truncated = substr.substring(0, lastSafe);
+      const suffix = truncated.trimEnd().endsWith("]") ? "}" : "]}]}";
+      return JSON.parse(truncated + suffix);
+    }
+  }
+
+  // Path 2: inline data (some Gemini versions return inlineData)
+  const inlineData = candidate?.content?.parts?.[0]?.inlineData?.data;
+  if (inlineData) {
+    return JSON.parse(Buffer.from(inlineData, "base64").toString("utf-8"));
+  }
+
+  throw new Error(
+    `No content in Gemini response. Finish reason: ${candidate?.finishReason ?? "unknown"}`,
+  );
+}
+
+function buildRequestBody(
+  systemPrompt: string,
+  userPrompt: string,
+  schema: object,
+) {
+  return JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 10000,
+      response_mime_type: "application/json",
+      response_schema: schema,
+    },
+  });
+}
+
+async function callGeminiWithFallback(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  schema: object,
+): Promise<Response> {
   try {
-    // --- STAGE 1: Rate Limiting ---
-
-    // Check global safety net first
-    const { success: globalOk } =
-      await globalLimiter.limit("global_safety_net");
-    if (!globalOk) {
-      return NextResponse.json(
-        { error: "Daily site capacity reached. Check back tomorrow!" },
-        { status: 429 },
-      );
-    }
-
-    // Check individual user limit (3 per day)
-    const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
-    const { success: userOk, reset } = await ipLimiter.limit(`user_${ip}`);
-    if (!userOk) {
-      const hoursLeft = Math.ceil((reset - Date.now()) / 3600000);
-      return NextResponse.json(
-        {
-          error: `Limit reached. You can generate more in ${hoursLeft} hours.`,
-        },
-        { status: 429 },
-      );
-    }
-
-    // --- STAGE 2: Validation ---
-
-    const body = await req.json();
-    const data = InputSchema.parse(body);
-    const apiKey = process.env.GEMINI_API_KEY;
-
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: buildUserPrompt(
-                    data.city,
-                    data.days,
-                    data.budget,
-                    data.travelStyle,
-                    data.mustVisit,
-                  ),
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: 12000,
-            temperature: 0.1,
-            response_mime_type: "application/json",
-            response_schema: {
-              type: "object",
-              required: ["city", "days", "trip_total_cost"],
-              properties: {
-                city: { type: "string" },
-                trip_total_cost: { type: "number" },
-                days: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    required: ["day", "theme", "stops", "daily_total_cost"],
-                    properties: {
-                      day: { type: "number" },
-                      theme: { type: "string" },
-                      daily_total_cost: { type: "number" },
-                      stops: {
-                        type: "array",
-                        minItems: 5,
-                        maxItems: 6,
-                        items: {
-                          type: "object",
-                          required: [
-                            "name",
-                            "type",
-                            "lat",
-                            "lng",
-                            "duration_mins",
-                            "entry_cost",
-                            "notes",
-                            "transport_from_previous",
+        body: buildRequestBody(systemPrompt, userPrompt, schema),
+      },
+    );
+
+    if (res.ok) return res;
+
+    // Only retry on 429 (rate limit) or 503 (overloaded/unavailable)
+    if (res.status !== 429 && res.status !== 503) {
+      // 400, 401, 404 etc. — no point retrying different models
+      throw new Error(`Gemini error ${res.status}`);
+    }
+  } catch (err: unknown) {
+    throw err;
+  }
+
+  // spike error
+  const spikeError = new Error("GEMINI_SPIKE");
+  spikeError.name = "GEMINI_SPIKE";
+  throw spikeError;
+}
+
+export async function POST(req: Request) {
+  try {
+    // Rate limiting
+    const ip = (req.headers.get("x-forwarded-for") ?? "anonymous")
+      .split(",")[0]
+      .trim();
+
+    const { success: globalOk } = await globalLimiter.limit("global");
+    if (!globalOk) {
+      return NextResponse.json(
+        { error: "Daily site capacity reached. Try again tomorrow." },
+        { status: 429 },
+      );
+    }
+
+    const { success: userOk, reset } = await ipLimiter.limit(ip);
+    if (!userOk) {
+      const hoursLeft = Math.ceil((reset - Date.now()) / 3_600_000);
+      return NextResponse.json(
+        {
+          error: `Daily limit reached. Try again in ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    // Parse + validate input
+    const body = await req.json();
+    const data = InputSchema.parse(body);
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API not configured." },
+        { status: 500 },
+      );
+    }
+
+    const RESPONSE_SCHEMA = {
+      type: "OBJECT",
+      required: ["city", "days", "trip_total_cost"],
+      properties: {
+        city: { type: "STRING" },
+        trip_total_cost: { type: "NUMBER" },
+        days: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            required: ["day", "theme", "stops", "daily_total_cost"],
+            properties: {
+              day: { type: "NUMBER" },
+              theme: { type: "STRING" },
+              daily_total_cost: { type: "NUMBER" },
+              stops: {
+                type: "ARRAY",
+                minItems: 4,
+                maxItems: 6,
+                items: {
+                  type: "OBJECT",
+                  required: [
+                    "name",
+                    "type",
+                    "lat",
+                    "lng",
+                    "duration_mins",
+                    "entry_cost",
+                    "notes",
+                    "transport_from_previous",
+                  ],
+                  properties: {
+                    name: { type: "STRING" },
+                    type: {
+                      type: "STRING",
+                      enum: ["attraction", "food", "activity"],
+                    },
+                    lat: { type: "NUMBER" },
+                    lng: { type: "NUMBER" },
+                    duration_mins: { type: "NUMBER" },
+                    entry_cost: { type: "NUMBER" },
+                    notes: { type: "STRING" },
+                    transport_from_previous: {
+                      type: "OBJECT",
+                      required: ["mode", "fare"],
+                      properties: {
+                        mode: {
+                          type: "STRING",
+                          enum: [
+                            "walk",
+                            "bus",
+                            "metro",
+                            "train",
+                            "ferry",
+                            "start",
+                            "cab",
                           ],
-                          properties: {
-                            name: { type: "string" },
-                            type: {
-                              type: "string",
-                              enum: ["attraction", "food", "activity"],
-                            },
-                            lat: { type: "number" },
-                            lng: { type: "number" },
-                            duration_mins: { type: "number" },
-                            entry_cost: { type: "number" },
-                            notes: { type: "string" },
-                            transport_from_previous: {
-                              type: "object",
-                              required: [
-                                "mode",
-                                "line",
-                                "from_stop",
-                                "to_stop",
-                                "fare",
-                              ],
-                              properties: {
-                                mode: {
-                                  type: "string",
-                                  enum: [
-                                    "walk",
-                                    "bus",
-                                    "metro",
-                                    "train",
-                                    "ferry",
-                                    "start",
-                                    "cab",
-                                  ],
-                                },
-                                line: { type: "string", nullable: true },
-                                from_stop: { type: "string", nullable: true },
-                                to_stop: { type: "string", nullable: true },
-                                fare: { type: "number" },
-                                walk_to_stop_mins: { type: "number" },
-                              },
-                            },
-                          },
                         },
+                        line: { type: "STRING", nullable: true },
+                        from_stop: { type: "STRING", nullable: true },
+                        to_stop: { type: "STRING", nullable: true },
+                        fare: { type: "NUMBER" },
+                        walk_to_stop_mins: { type: "NUMBER", nullable: true },
                       },
                     },
                   },
@@ -176,43 +236,87 @@ export async function POST(req: NextRequest) {
               },
             },
           },
-        }),
+        },
       },
-    );
+    };
 
-    const json = await res.json();
-
-    if (!json.candidates || json.candidates.length === 0) {
-      console.error(
-        "Gemini Blocked/Empty. Full JSON:",
-        JSON.stringify(json, null, 2),
+    // Call Gemini
+    let geminiRes: Response;
+    try {
+      geminiRes = await callGeminiWithFallback(
+        apiKey,
+        SYSTEM_PROMPT,
+        buildUserPrompt(
+          data.city,
+          data.days,
+          data.budget,
+          data.travelStyle,
+          data.mustVisit,
+        ),
+        RESPONSE_SCHEMA,
       );
-
-      // Check if it was a safety block
-      const safety = json.promptFeedback?.blockReason;
-      if (safety) throw new Error(`Blocked by Safety: ${safety}`);
-
-      throw new Error("Gemini returned no candidates.");
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "GEMINI_SPIKE") {
+        return Response.json(
+          {
+            error: "spike",
+            message:
+              "AI models are experiencing a spike in traffic. Please try again in a moment.",
+          },
+          { status: 503 },
+        );
+      }
+      return Response.json({ error: "generation_failed" }, { status: 500 });
     }
 
-    const candidate = json.candidates[0];
-    const content = candidate.content?.parts?.[0]?.text;
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error("Gemini HTTP error", geminiRes.status, errText);
+      if (geminiRes.status === 429) {
+        return NextResponse.json(
+          { error: "AI rate limited — try again in a moment." },
+          { status: 429 },
+        );
+      }
+      throw new Error(`Gemini API error: ${geminiRes.status}`);
+    }
 
-    if (!content) {
-      console.error("Finish Reason:", candidate.finish_reason);
+    const geminiJson = await geminiRes.json();
+
+    // Log full response in dev to debug response shape
+    if (process.env.NODE_ENV === "development") {
+      console.log("Gemini raw response:", JSON.stringify(geminiJson, null, 2));
+    }
+
+    // Check for blocked/empty response
+    if (!geminiJson.candidates?.length) {
+      const blockReason = geminiJson.promptFeedback?.blockReason;
+      console.error("Gemini blocked:", geminiJson);
       throw new Error(
-        `AI stopped without generating text. Reason: ${candidate.finish_reason}`,
+        blockReason ? `Blocked: ${blockReason}` : "No response from AI.",
       );
     }
 
-    // Clean any potential Markdown artifacts (just in case)
-    const sanitized = content
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    const candidate = geminiJson.candidates[0];
 
-    // This will now succeed because response_schema prevents malformed JSON
-    const rawItinerary = JSON.parse(sanitized);
+    // Check finish reason — STOP is good, others need handling
+    const finishReason = candidate.finishReason ?? candidate.finish_reason;
+    if (finishReason && finishReason !== "STOP" && finishReason !== "stop") {
+      console.error("Bad finish reason:", finishReason, candidate);
+      if (finishReason === "MAX_TOKENS" || finishReason === "max_tokens") {
+        // Still try to parse what we got
+        console.warn("Response was truncated — attempting partial parse");
+      } else {
+        throw new Error(`Generation stopped: ${finishReason}`);
+      }
+    }
+
+    const rawItinerary = extractJson(candidate);
+
+    // Validate basic structure
+    if (!rawItinerary?.days?.length) {
+      throw new Error("AI returned empty itinerary — please try again.");
+    }
 
     const corrected = enforceTransportModes(
       rawItinerary,
@@ -221,10 +325,15 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(corrected);
   } catch (e: any) {
-    console.error("Final Route Error:", e);
-    return NextResponse.json(
-      { error: e.message || "Internal Server Error", stack: e.stack },
-      { status: 500 },
-    );
+    console.error("Route error:", e.message, e.stack);
+
+    // Don't expose internal errors to client
+    const userMessage = e.message?.includes("limit")
+      ? e.message
+      : e.message?.includes("Blocked")
+        ? e.message
+        : "Couldn't generate itinerary due to model experiencing high demand - please try again in a moment.";
+
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }
