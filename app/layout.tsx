@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "ExploreAI: AI-powered tourist itinerary planner",
@@ -38,6 +40,8 @@ export default function RootLayout({
       <body style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
         {children}
         <Toaster />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
