@@ -42,6 +42,8 @@ npm run dev
 GEMINI_API_KEY=                 # From console.anthropic.com
 NEXT_PUBLIC_SUPABASE_URL=       # From Supabase project settings
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # From Supabase project settings
+UPSTASH_REDIS_REST_URL=         # From Upstash settings for Rate Limit
+UPSTASH_REDIS_REST_TOKEN=       # From Upstash settings for Rate Limit
 ```
 
 ## Live Demo

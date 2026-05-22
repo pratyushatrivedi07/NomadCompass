@@ -11,15 +11,18 @@ import {
   Sailboat,
   Car,
 } from "lucide-react";
+
 import type { Stop } from "@/lib/types";
 
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function transportIcon(mode?: string) {
   const m = (mode ?? "").toLowerCase();
+
   if (m.includes("walk")) return Footprints;
   if (m.includes("ferry")) return Sailboat;
   if (m.includes("cab") || m.includes("taxi")) return Car;
+
   if (
     m.includes("metro") ||
     m.includes("tube") ||
@@ -27,15 +30,19 @@ function transportIcon(mode?: string) {
     m.includes("rail") ||
     m.includes("subway") ||
     m.includes("mrt")
-  )
+  ) {
     return Train;
+  }
+
   return Bus;
 }
 
 function typeIcon(type?: string) {
   const t = (type ?? "").toLowerCase();
+
   if (t.includes("food")) return UtensilsCrossed;
   if (t.includes("activity")) return Activity;
+
   return Landmark;
 }
 
@@ -59,9 +66,12 @@ export function StopCard({
   currencySymbol?: string;
 }) {
   const t = stop.transport_from_previous;
+
   const TIcon = transportIcon(t?.mode);
   const TypeIcon = typeIcon(stop.type);
+
   const showTransport = t && (t.mode ?? "").toLowerCase() !== "start";
+
   const fare = t?.fare ?? (t as any)?.cost ?? 0;
 
   return (
@@ -69,23 +79,21 @@ export function StopCard({
       {showTransport && (
         <div className="transport-connector">
           <TIcon className="h-3 w-3 shrink-0" />
+
           {(t!.mode ?? "").toLowerCase() === "walk" ? (
             <span className="text-[#5f6368]">
               {t!.walk_to_stop_mins ?? 10} min walk
             </span>
           ) : (
-            <span className="text-[#5f6368] truncate">
-              {/* Mode label: Capitalized */}
+            <span className="truncate text-[#5f6368]">
               <span className="font-medium">{cap(t!.mode)}</span>
 
-              {/* Line: Show only if it exists and isn't "null" or equal to mode */}
               {t!.line &&
                 t!.line !== "null" &&
                 t!.line.toLowerCase() !== t!.mode.toLowerCase() && (
                   <span> {t!.line}</span>
                 )}
 
-              {/* From/To: Show only if both exist and aren't "null" */}
               {t!.from_stop && t!.to_stop && t!.from_stop !== "null" && (
                 <span className="text-[#9aa0a6]">
                   {" "}
@@ -93,7 +101,6 @@ export function StopCard({
                 </span>
               )}
 
-              {/* Fare: Always fixed to 2 decimals if > 0 */}
               {fare > 0 && (
                 <span className="text-[#9aa0a6]">
                   {" "}
@@ -105,9 +112,18 @@ export function StopCard({
           )}
         </div>
       )}
-      <button
+
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onClick}
-        className={`group flex w-full gap-3 rounded-lg bg-white p-3 text-left transition border ${
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={`group flex w-full cursor-pointer gap-3 rounded-lg border bg-white p-3 text-left transition ${
           active
             ? "border-[#1a73e8] bg-[#e8f0fe]"
             : "border-transparent hover:bg-[#f1f3f4]"
@@ -120,8 +136,10 @@ export function StopCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="font-medium leading-tight">{stop.name}</div>
+
             {onRemove && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();
@@ -132,6 +150,7 @@ export function StopCard({
               </button>
             )}
           </div>
+
           <div className="mt-0.5 flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
             <TypeIcon className="h-3 w-3" />
             {stop.type} · {stop.duration_mins} min ·{" "}
@@ -139,13 +158,14 @@ export function StopCard({
               ? `${currencySymbol}${stop.entry_cost.toFixed(2)}`
               : "Free"}
           </div>
+
           {(stop.notes || stop.description) && (
             <div className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
               {stop.notes ?? stop.description}
             </div>
           )}
         </div>
-      </button>
+      </div>
     </div>
   );
 }
