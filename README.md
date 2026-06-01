@@ -28,10 +28,10 @@ First-time travellers spend 2–3 days across 5 apps to plan a trip. Google Maps
 ## Setup
 
 ```bash
-git clone https://github.com/yourusername/journeyGenie
-cd journeyGenie
+git clone https://github.com/yourusername/NomadCompass
+cd NomadCompass
 npm install
-cp .env.local.example .env.local
+cp .env.example .env.local
 # Fill in your API keys in .env.local
 npm run dev
 ```
@@ -48,7 +48,7 @@ UPSTASH_REDIS_REST_TOKEN=       # From Upstash settings for Rate Limit
 
 ## Live Demo
 
-[exploreai.vercel.app](explore-ai-maps.vercel.app)
+[nomads-compass.vercel.app](nomads-compass.vercel.app)
 
 ## PRD & Case Study
 
