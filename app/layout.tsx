@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
-  title: "ExploreAI: AI-powered tourist itinerary planner",
+  title: "Nomad's Compass: AI-powered tourist itinerary planner",
   description:
-    "Plan a multi-day trip in seconds. Tell ExploreAI your city, budget and style — get a mapped itinerary.",
+    "Plan a multi-day trip in seconds. Tell Nomad's Compass your city, budget and style — get a mapped itinerary.",
   openGraph: {
-    title: "ExploreAI: AI itinerary planner",
+    title: "Nomad's Compass: AI itinerary planner",
     description: "AI-built day-by-day itineraries with maps and transit.",
   },
 };

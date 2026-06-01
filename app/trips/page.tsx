@@ -6,6 +6,7 @@ import { Loader2, MapPin, Calendar, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrency } from "@/lib/cities";
 import { toast } from "sonner";
+import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
 
 type Trip = {
   id: string;
@@ -81,17 +82,12 @@ export default function TripsPage() {
       <header className="bg-white border-b border-[#dadce0] sticky top-0 z-10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <svg height="22" viewBox="0 0 24 24" width="22">
-              <path
-                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-                fill="#1a73e8"
-              />
-            </svg>
+            <JourneyGenieLogo />
             <span
               className="text-lg font-medium text-[#202124]"
               style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
             >
-              ExploreAI
+              Nomad's Compass
             </span>
           </Link>
           <Link

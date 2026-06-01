@@ -171,7 +171,7 @@ export default function SetupPage() {
           <div className="flex items-center gap-2">
             <JourneyGenieLogo />
             <span className="text-lg font-medium text-[#202124]">
-              ExploreAI
+              Nomad's Compass
             </span>
           </div>
           <Link

@@ -264,7 +264,9 @@ export default function TripPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <JourneyGenieLogo />
-              <span className="text-xs font-medium text-[#1a73e8]">ExploreAI</span>
+              <span className="text-xs font-medium text-[#1a73e8]">
+                Nomad's Compass
+              </span>
             </div>
             <h1 className="text-[15px] font-medium text-[#202124] capitalize leading-tight truncate">
               {data.meta.city}

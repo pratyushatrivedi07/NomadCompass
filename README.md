@@ -1,4 +1,4 @@
-# ExploreAI: AI-Powered Tourist Itinerary Planner
+# Nomad's Compass: AI-Powered Tourist Itinerary Planner
 
 A product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travellers.
 
