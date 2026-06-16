@@ -48,7 +48,7 @@ UPSTASH_REDIS_REST_TOKEN=       # From Upstash settings for Rate Limit
 
 ## Live Demo
 
-[nomads-compass.vercel.app](nomads-compass.vercel.app)
+[nomads-compass.vercel.app](https://nomads-compass.vercel.app)
 
 ## PRD & Case Study
 
