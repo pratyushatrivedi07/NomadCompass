@@ -6,7 +6,7 @@ import { Loader2, MapPin, Calendar, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrency } from "@/lib/cities";
 import { toast } from "sonner";
-import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
+import { NomadCompassLogo } from "@/components/NomadCompassLogo";
 
 type Trip = {
   id: string;
@@ -82,7 +82,7 @@ export default function TripsPage() {
       <header className="bg-white border-b border-[#dadce0] sticky top-0 z-10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
-            <JourneyGenieLogo />
+            <NomadCompassLogo />
             <span
               className="text-lg font-medium text-[#202124]"
               style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}

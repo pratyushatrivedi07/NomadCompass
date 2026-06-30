@@ -9,10 +9,10 @@ import { supabase } from "@/lib/supabase";
 import { getCurrency } from "@/lib/cities";
 import type { Itinerary } from "@/lib/types";
 import { StopCard } from "@/components/StopCard";
-import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
+import { NomadCompassLogo } from "@/components/NomadCompassLogo";
 
-const JourneyGenie = dynamic(
-  () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
+const NomadCompass = dynamic(
+  () => import("@/components/NomadCompass").then((m) => m.NomadCompass),
   {
     ssr: false,
     loading: () => <div className="h-full w-full bg-[#f1f3f4] animate-pulse" />,
@@ -94,7 +94,7 @@ export default function SharedTripPage() {
           </Link>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <JourneyGenieLogo />
+              <NomadCompassLogo />
               <span className="text-sm font-medium text-[#1a73e8]">
                 Nomad's Compass
               </span>
@@ -175,7 +175,7 @@ export default function SharedTripPage() {
       </aside>
 
       <div className="relative h-[50vh] flex-1 md:h-auto">
-        <JourneyGenie
+        <NomadCompass
           stops={day.stops}
           activeIndex={activeStop}
           onSelect={setActiveStop}

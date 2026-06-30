@@ -26,10 +26,10 @@ import { getCurrency } from "@/lib/cities";
 import { supabase } from "@/lib/supabase";
 import { haversineKm } from "@/lib/utils";
 import { toast } from "sonner";
-import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
+import { NomadCompassLogo } from "@/components/NomadCompassLogo";
 
-const JourneyGenie = dynamic(
-  () => import("@/components/JourneyGenie").then((m) => m.JourneyGenie),
+const NomadCompass = dynamic(
+  () => import("@/components/NomadCompass").then((m) => m.NomadCompass),
   {
     ssr: false,
     loading: () => <div className="h-full w-full bg-[#f1f3f4] animate-pulse" />,
@@ -65,7 +65,7 @@ export default function TripPage() {
   const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("journeygenie:current");
+    const raw = sessionStorage.getItem("nomadCompass:current");
     if (!raw) {
       router.push("/");
       return;
@@ -114,7 +114,7 @@ export default function TripPage() {
 
   const persist = (next: Stored) => {
     setData(next);
-    sessionStorage.setItem("journeygenie:current", JSON.stringify(next));
+    sessionStorage.setItem("nomadCompass:current", JSON.stringify(next));
   };
 
   const removeStop = (idx: number) => {
@@ -141,7 +141,7 @@ export default function TripPage() {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + " " + (data?.meta.city ?? ""))}&format=json&limit=5`,
-        { headers: { "User-Agent": "JourneyGenie/1.0" } },
+        { headers: { "User-Agent": "NomadCompass/1.0" } },
       );
       setNominatimResults(await res.json());
     } catch {
@@ -263,7 +263,7 @@ export default function TripPage() {
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <JourneyGenieLogo />
+              <NomadCompassLogo />
               <span className="text-xs font-medium text-[#1a73e8]">
                 Nomad's Compass
               </span>
@@ -462,7 +462,7 @@ export default function TripPage() {
 
       {/* Map */}
       <div className="relative h-[50vh] flex-1 md:h-full min-w-0">
-        <JourneyGenie
+        <NomadCompass
           stops={day.stops}
           activeIndex={activeStop}
           onSelect={setActiveStop}

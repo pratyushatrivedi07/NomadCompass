@@ -1,4 +1,4 @@
-export function JourneyGenieLogo({ size = 22 }: { size?: number }) {
+export function NomadCompassLogo({ size = 22 }: { size?: number }) {
   return (
     <svg
       height={size}

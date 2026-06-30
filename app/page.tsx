@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Loader2, Bus, Footprints, Shuffle, ArrowRight } from "lucide-react";
 import { getBudgetRanges } from "@/lib/cities";
 import { toast } from "sonner";
-import { JourneyGenieLogo } from "@/components/JourneyGenieLogo";
+import { NomadCompassLogo } from "@/components/NomadCompassLogo";
 
 const styles = [
   { id: "public", icon: Bus, label: "Public Transport" },
@@ -134,7 +134,7 @@ export default function SetupPage() {
 
       const result = await res.json();
       sessionStorage.setItem(
-        "journeygenie:current",
+        "nomadCompass:current",
         JSON.stringify({
           meta: {
             city: city.trim(),
@@ -169,7 +169,7 @@ export default function SetupPage() {
       <header className="border-b border-[#dadce0] bg-white sticky top-0 z-10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
-            <JourneyGenieLogo />
+            <NomadCompassLogo />
             <span className="text-lg font-medium text-[#202124]">
               Nomad's Compass
             </span>

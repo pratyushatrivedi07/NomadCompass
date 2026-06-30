@@ -52,7 +52,7 @@ function getPolylineStyle(mode: string) {
   }
 }
 
-export function JourneyGenie({ stops, activeIndex, onSelect, city }: Props) {
+export function NomadCompass({ stops, activeIndex, onSelect, city }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
