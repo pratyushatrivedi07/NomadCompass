@@ -246,7 +246,7 @@ export default function SetupPage() {
                   {days}
                 </div>
                 <button
-                  onClick={() => setDays(Math.min(7, days + 1))}
+                  onClick={() => setDays(Math.min(5, days + 1))}
                   disabled={isGenerating}
                   className={cx(
                     "w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition",

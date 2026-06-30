@@ -29,7 +29,7 @@ const globalLimiter = new Ratelimit({
 
 const ipLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.fixedWindow(5, "24 h"),
+  limiter: Ratelimit.fixedWindow(3, "24 h"),
   prefix: "ip",
 });
 

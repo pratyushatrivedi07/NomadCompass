@@ -40,7 +40,7 @@ function getPolylineStyle(mode: string) {
     case "metro":
       return { color: "#E040FB", weight: 6, opacity: 1, dashArray: undefined };
     case "bus":
-      return { color: "#ffae00", weight: 8, opacity: 1, dashArray: undefined };
+      return { color: "#ca1f1f", weight: 8, opacity: 1, dashArray: undefined };
     case "train":
       return { color: "#FF6D00", weight: 6, opacity: 1, dashArray: undefined };
     case "ferry":
@@ -103,7 +103,7 @@ export function JourneyGenie({ stops, activeIndex, onSelect, city }: Props) {
       const legendHtml = `
         <div style="background:rgba(0,0,0,0.85);border-radius:8px;padding:8px 12px;font-size:11px;color:#fff;line-height:2;font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.15)">
           <div><span style="display:inline-block;width:24px;height:4px;background:#E040FB;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Metro</div>
-          <div><span style="display:inline-block;width:24px;height:4px;background:#ffae00;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Bus</div>
+          <div><span style="display:inline-block;width:24px;height:4px;background:#ca1f1f;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Bus</div>
           <div><span style="display:inline-block;width:24px;height:4px;background:#FF6D00;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Train</div>
           <div><span style="display:inline-block;width:24px;height:4px;background:#6e0ac5;margin-right:8px;vertical-align:middle;border-radius:2px"></span>Cab</div>
           <div style="display:flex;align-items:center"><span style="display:inline-block;width:24px;border-top:3px dashed #058a4a;margin-right:8px"></span>Walk</div>
