@@ -39,7 +39,7 @@ npm run dev
 ## Environment Variables
 
 ```
-GEMINI_API_KEY=                 # From console.anthropic.com
+GEMINI_API_KEY=                 # From aistudio.google.com
 NEXT_PUBLIC_SUPABASE_URL=       # From Supabase project settings
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # From Supabase project settings
 UPSTASH_REDIS_REST_URL=         # From Upstash settings for Rate Limit
