@@ -1,16 +1,22 @@
-import { sendGAEvent } from "@next/third-parties/google";
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
 
 /**
- * Fire a GA4 custom event. No-ops when NEXT_PUBLIC_GA_ID is unset
- * (local dev without analytics) or when gtag is blocked by the client.
+ * Fire a GA4 custom event via the gtag snippet in app/layout.tsx.
+ * No-ops when gtag isn't loaded (GA ID unset, ad blocker, SSR).
  */
 export function track(
   event: string,
   params?: Record<string, string | number | boolean>,
 ) {
-  if (!process.env.NEXT_PUBLIC_GA_ID) return;
+  if (typeof window === "undefined" || typeof window.gtag !== "function") {
+    return;
+  }
   try {
-    sendGAEvent("event", event, params ?? {});
+    window.gtag("event", event, params ?? {});
   } catch {
     // Analytics must never break the app.
   }
