@@ -35,8 +35,11 @@ export default function RootLayout({
         {/* Google Analytics with Consent Mode (works with CookieYes) */}
         {gaId && (
           <>
-            {/* Set default consent to denied BEFORE gtag loads.
-                CookieYes updates this automatically when the user accepts. */}
+            {/* Default to denied only for regions where consent is legally
+                required (EEA + UK + CH). Everywhere else, gtag implicitly
+                treats storage as granted since no default is set for it.
+                CookieYes sends a consent update when an EEA/UK/CH visitor
+                responds to the banner. */}
             <Script id="google-consent-default" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
@@ -45,7 +48,12 @@ export default function RootLayout({
                   analytics_storage: 'denied',
                   ad_storage: 'denied',
                   ad_user_data: 'denied',
-                  ad_personalization: 'denied'
+                  ad_personalization: 'denied',
+                  region: [
+                    'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE',
+                    'GR','HU','IS','IE','IT','LV','LI','LT','LU','MT','NL',
+                    'NO','PL','PT','RO','SK','SI','ES','SE','GB','CH'
+                  ]
                 });
               `}
             </Script>
