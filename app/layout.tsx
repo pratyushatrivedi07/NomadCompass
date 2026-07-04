@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
   title: "Nomad's Compass: AI-powered tourist itinerary planner",
@@ -22,6 +23,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* CookieYes consent banner — must load before gtag so consent
+            defaults (denied) are set before any GA hit fires. */}
+        <script
+          id="cookieyes"
+          type="text/javascript"
+          src="https://cdn-cookieyes.com/client_data/4438de03e2a541b89e3046e7/script.js"
+        ></script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -42,6 +50,9 @@ export default function RootLayout({
         <Toaster />
         <Analytics />
         <SpeedInsights />
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
       </body>
     </html>
   );

@@ -10,6 +10,7 @@ import { getCurrency } from "@/lib/cities";
 import type { Itinerary } from "@/lib/types";
 import { StopCard } from "@/components/StopCard";
 import { NomadCompassLogo } from "@/components/NomadCompassLogo";
+import { track } from "@/lib/analytics";
 
 const NomadCompass = dynamic(
   () => import("@/components/NomadCompass").then((m) => m.NomadCompass),
@@ -39,8 +40,10 @@ export default function SharedTripPage() {
         if (error || !data) {
           setNotFound(true);
           setLoading(false);
+          track("shared_trip_not_found", { slug });
           return;
         }
+        track("shared_trip_viewed", { slug, city: data.city });
         const itin = data.itinerary as unknown as Itinerary;
         setItinerary(itin);
         if (itin?.days?.length) setActiveDay(itin.days[0].day);

@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { haversineKm } from "@/lib/utils";
 import { toast } from "sonner";
 import { NomadCompassLogo } from "@/components/NomadCompassLogo";
+import { track } from "@/lib/analytics";
 
 const NomadCompass = dynamic(
   () => import("@/components/NomadCompass").then((m) => m.NomadCompass),
@@ -130,6 +131,7 @@ export default function TripPage() {
     );
     persist({ ...data, itinerary: { ...data.itinerary, days: newDays } });
     setActiveStop(null);
+    track("stop_removed", { city: data.meta.city, day: day.day });
   };
 
   const searchNominatim = async (query: string) => {
@@ -192,6 +194,7 @@ export default function TripPage() {
     setNewStopName("");
     setNominatimResults([]);
     setAddingFor(null);
+    track("stop_added", { city: data.meta.city, day: day.day });
   };
 
   const save = async () => {
@@ -218,7 +221,14 @@ export default function TripPage() {
       const url = `${window.location.origin}/t/${row.share_slug}`;
       setShareUrl(url);
       setModalMode("save");
+      track("itinerary_saved", {
+        city: data.meta.city,
+        days: data.meta.days,
+        budget: data.meta.budget,
+        travel_style: data.meta.travelStyle,
+      });
     } catch (e) {
+      track("save_failed", { city: data.meta.city });
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
@@ -226,6 +236,7 @@ export default function TripPage() {
   };
 
   const handleShare = async () => {
+    track("share_clicked", { city: data?.meta.city ?? "" });
     if (!shareUrl) {
       await save();
       setModalMode("share");
@@ -515,6 +526,7 @@ export default function TripPage() {
                   onClick={async () => {
                     await navigator.clipboard.writeText(shareUrl);
                     toast.success("Link copied!");
+                    track("share_link_copied", { city: data.meta.city });
                   }}
                   className="flex items-center gap-1.5 bg-[#1a73e8] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1557b0] transition"
                 >

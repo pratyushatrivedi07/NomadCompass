@@ -7,6 +7,7 @@ import { Loader2, Bus, Footprints, Shuffle, ArrowRight } from "lucide-react";
 import { getBudgetRanges } from "@/lib/cities";
 import { toast } from "sonner";
 import { NomadCompassLogo } from "@/components/NomadCompassLogo";
+import { track } from "@/lib/analytics";
 
 const styles = [
   { id: "public", icon: Bus, label: "Public Transport" },
@@ -83,6 +84,15 @@ export default function SetupPage() {
     setLoading(true);
     setIsGenerating(true);
 
+    track("generate_clicked", {
+      city: city.trim(),
+      days,
+      budget,
+      travel_style: travelStyle,
+      has_must_visit: mustVisit.trim().length > 0,
+    });
+    const startedAt = Date.now();
+
     try {
       const mustVisitList = mustVisit
         .split(",")
@@ -107,6 +117,7 @@ export default function SetupPage() {
 
         // ── spike: all Gemini models overloaded ──────────────────────────────
         if (err.error === "spike" || res.status === 503) {
+          track("generate_failed", { city: city.trim(), error_type: "spike" });
           toast.error(
             "AI models are experiencing a spike in traffic. Please try again in a moment.",
             {
@@ -119,6 +130,10 @@ export default function SetupPage() {
 
         // ── rate limit ───────────────────────────────────────────────────────
         if (res.status === 429) {
+          track("generate_failed", {
+            city: city.trim(),
+            error_type: "rate_limit",
+          });
           toast.error(
             "You've hit today's generation limit. Come back tomorrow or try again later.",
             { duration: 12_000 },
@@ -133,6 +148,13 @@ export default function SetupPage() {
       }
 
       const result = await res.json();
+      track("generate_succeeded", {
+        city: city.trim(),
+        days,
+        budget,
+        travel_style: travelStyle,
+        duration_ms: Date.now() - startedAt,
+      });
       sessionStorage.setItem(
         "nomadCompass:current",
         JSON.stringify({
@@ -148,6 +170,7 @@ export default function SetupPage() {
       );
       router.push("/trip");
     } catch (e) {
+      track("generate_failed", { city: city.trim(), error_type: "generic" });
       toast.error(
         `${e instanceof Error ? e.message : "Couldn't generate itinerary — please try again."}`,
         { duration: 12_000 },
@@ -204,6 +227,7 @@ export default function SetupPage() {
                     setCity(c.name.toLowerCase());
                     setBudget(null);
                     setStep((s) => Math.max(s, 2));
+                    track("city_selected", { city: c.name.toLowerCase() });
                   }}
                   disabled={isGenerating}
                   className={cx(
@@ -277,6 +301,7 @@ export default function SetupPage() {
                     onClick={() => {
                       setBudget(b.id);
                       setStep((s) => Math.max(s, 4));
+                      track("budget_selected", { budget: b.id, city });
                     }}
                     disabled={isGenerating}
                     className={cx(
@@ -310,6 +335,7 @@ export default function SetupPage() {
                       onClick={() => {
                         setTravelStyle(s.id);
                         setStep((cs) => Math.max(cs, 5));
+                        track("style_selected", { travel_style: s.id, city });
                       }}
                       disabled={isGenerating}
                       className={cx(
