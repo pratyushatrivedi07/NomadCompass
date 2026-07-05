@@ -85,21 +85,24 @@ export function StopCard({
               {t!.walk_to_stop_mins ?? 10} min walk
             </span>
           ) : (
-            <span className="truncate text-[#5f6368]">
+            <span className="text-[#5f6368]">
               <span className="font-medium">{cap(t!.mode)}</span>
 
               {t!.line &&
                 t!.line !== "null" &&
-                t!.line.toLowerCase() !== t!.mode.toLowerCase() && (
+                t!.line.toLowerCase() !== (t!.mode ?? "").toLowerCase() && (
                   <span> {t!.line}</span>
                 )}
 
-              {t!.from_stop && t!.to_stop && t!.from_stop !== "null" && (
-                <span className="text-[#9aa0a6]">
-                  {" "}
-                  · {t!.from_stop} → {t!.to_stop}
-                </span>
-              )}
+              {t!.from_stop &&
+                t!.to_stop &&
+                t!.from_stop !== "null" &&
+                t!.to_stop !== "null" && (
+                  <span className="text-[#9aa0a6]">
+                    {" "}
+                    · {t!.from_stop} → {t!.to_stop}
+                  </span>
+                )}
 
               {fare > 0 && (
                 <span className="text-[#9aa0a6]">

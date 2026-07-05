@@ -133,7 +133,7 @@
 
 .transport-connector {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 5px;
   padding: 2px 0 2px 12px;
   margin: 2px 0;
@@ -141,6 +141,10 @@
   color: #5f6368;
   border-left: 2px solid #dadce0;
   margin-left: 28px;
+}
+
+.transport-connector > svg {
+  margin-top: 2px;
 }
 
 /* Fix letter inside blue circle */
@@ -157,4 +161,12 @@
   font-weight: 700;
   flex-shrink: 0;
   font-family: "Google Sans", Roboto, sans-serif;
+}
+
+@media (max-width: 767px) {
+  .mobile-sheet {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
 }

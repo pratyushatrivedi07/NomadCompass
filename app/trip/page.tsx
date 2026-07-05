@@ -64,6 +64,8 @@ export default function TripPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(380);
   const sidebarRef = useRef<HTMLElement>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetTouchY = useRef(0);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("nomadCompass:current");
@@ -255,33 +257,69 @@ export default function TripPage() {
 
   return (
     <div
-      className="flex h-screen flex-col md:flex-row overflow-hidden"
+      className="relative h-[100dvh] md:flex md:flex-row md:overflow-hidden"
       style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}
     >
-      {/* Sidebar */}
+      {/* Map — full viewport on mobile, flex-1 on desktop */}
+      <div className="absolute inset-0 z-0 md:relative md:order-2 md:flex-1 md:h-full min-w-0">
+        <NomadCompass
+          stops={day.stops}
+          activeIndex={activeStop}
+          onSelect={(i) => {
+            setActiveStop(i);
+            setSheetExpanded(true);
+          }}
+          city={data.meta.city}
+        />
+      </div>
+
+      {/* Bottom sheet (mobile) / Sidebar (desktop) */}
       <aside
         ref={sidebarRef}
-        className="flex w-full flex-col bg-white shadow-lg border-r border-[#dadce0] relative md:flex-shrink-0"
+        className={`
+          mobile-sheet fixed bottom-0 left-0 right-0 z-10 flex flex-col bg-white
+          rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)]
+          transition-[max-height] duration-300 ease-in-out overflow-hidden
+          ${sheetExpanded ? "max-h-[85dvh]" : "max-h-[35dvh]"}
+          md:relative md:order-1 md:z-auto md:rounded-none md:shadow-lg md:border-r md:border-[#dadce0]
+          md:max-h-none md:flex-shrink-0
+        `}
         style={{ minWidth: 300, maxWidth: 600, width: sidebarWidth }}
       >
+        {/* Drag handle — mobile only */}
+        <div
+          className="md:hidden flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+          onClick={() => setSheetExpanded((v) => !v)}
+          onTouchStart={(e) => {
+            sheetTouchY.current = e.touches[0].clientY;
+          }}
+          onTouchEnd={(e) => {
+            const delta = sheetTouchY.current - e.changedTouches[0].clientY;
+            if (Math.abs(delta) > 40)
+              setSheetExpanded(delta > 0);
+          }}
+        >
+          <div className="w-10 h-1.5 rounded-full bg-[#dadce0]" />
+        </div>
+
         {/* Header */}
-        <header className="flex items-center gap-2 px-3 py-3 border-b border-[#dadce0]">
+        <header className="flex items-center gap-2 px-3 py-2 md:py-3 border-b border-[#dadce0] shrink-0">
           <Link
             href="/"
             className="p-2 hover:bg-[#f1f3f4] rounded-full transition flex items-center justify-center"
           >
             <ChevronLeft className="h-5 w-5 text-[#5f6368]" />
           </Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <NomadCompassLogo />
-              <span className="text-xs font-medium text-[#1a73e8]">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <NomadCompassLogo size={28} />
+            <div className="min-w-0">
+              <span className="text-xs mb-1 font-medium text-[#1a73e8] leading-none block">
                 Nomad's Compass
               </span>
+              <h1 className="text-[15px] font-medium text-[#202124] capitalize leading-tight truncate">
+                {data.meta.city}
+              </h1>
             </div>
-            <h1 className="text-[15px] font-medium text-[#202124] capitalize leading-tight truncate">
-              {data.meta.city}
-            </h1>
           </div>
           <div className="relative">
             <button
@@ -312,14 +350,14 @@ export default function TripPage() {
         </header>
 
         {/* City + meta */}
-        <div className="px-4 py-3 border-b border-[#f1f3f4]">
+        <div className="px-4 pt-2 pb-0">
           <p className="text-xs text-[#5f6368]">
             {data.meta.days} days · {data.meta.budget} · {data.meta.travelStyle}
           </p>
         </div>
 
         {/* Day tabs */}
-        <div className="flex border-b border-[#dadce0] px-2 overflow-x-auto">
+        <div className="flex border-b border-[#dadce0] px-2 overflow-x-auto shrink-0">
           {data.itinerary.days.map((d) => (
             <button
               key={d.day}
@@ -470,16 +508,6 @@ export default function TripPage() {
           <div className="w-0.5 h-10 bg-[#dadce0] group-hover:bg-[#1a73e8] group-hover:w-1 rounded-full transition-all" />
         </div>
       </aside>
-
-      {/* Map */}
-      <div className="relative h-[50vh] flex-1 md:h-full min-w-0">
-        <NomadCompass
-          stops={day.stops}
-          activeIndex={activeStop}
-          onSelect={setActiveStop}
-          city={data.meta.city}
-        />
-      </div>
 
       {/* Modal */}
       <Dialog open={!!modalMode} onOpenChange={(o) => !o && setModalMode(null)}>

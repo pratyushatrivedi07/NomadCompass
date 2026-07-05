@@ -112,10 +112,10 @@ export default function TripsPage() {
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-4 rounded-2xl border border-[#dadce0] bg-white p-4 animate-pulse"
+                className="flex items-center gap-3 rounded-2xl border border-[#dadce0] bg-white p-3 md:p-4 animate-pulse"
               >
                 {/* Icon skeleton */}
-                <div className="w-12 h-12 rounded-xl bg-[#e8eaed] shrink-0" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#e8eaed] shrink-0" />
 
                 {/* Text skeleton */}
                 <div className="flex-1 min-w-0">
@@ -151,48 +151,48 @@ export default function TripsPage() {
             {trips.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center gap-4 rounded-2xl border border-[#dadce0] bg-white p-4 hover:shadow-sm transition group"
+                className="flex items-center gap-3 rounded-2xl border border-[#dadce0] bg-white p-3 md:p-4 hover:shadow-sm transition group"
               >
                 <Link
                   href={`/t/${t.share_slug}`}
-                  className="flex-1 flex items-center gap-4"
+                  className="flex-1 flex items-center gap-3 md:gap-4 min-w-0"
                 >
                   {/* City icon */}
-                  <div className="w-12 h-12 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0">
                     <MapPin className="h-5 w-5 text-[#1a73e8]" />
                   </div>
 
                   {/* Trip info */}
                   <div className="flex-1 min-w-0">
-                    <div
-                      className="font-medium text-[#202124] capitalize"
-                      style={{
-                        fontFamily: "'Google Sans', Roboto, sans-serif",
-                      }}
-                    >
-                      {t.city}
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div
+                        className="font-medium text-[#202124] capitalize truncate"
+                        style={{
+                          fontFamily: "'Google Sans', Roboto, sans-serif",
+                        }}
+                      >
+                        {t.city}
+                      </div>
+                      <div className="text-sm font-medium text-[#202124] shrink-0">
+                        {getTripTotal(t)}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-[#5f6368]">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
+                    <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                      <div className="text-xs text-[#5f6368] whitespace-nowrap">
+                        <Calendar className="inline h-3 w-3 -mt-px mr-1" />
                         {getDayCount(t)} days
-                      </span>
-                      <span className="capitalize">{t.budget}</span>
-                      <span className="capitalize">{t.travel_style}</span>
-                    </div>
-                  </div>
-
-                  {/* Cost + date */}
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-medium text-[#202124]">
-                      {getTripTotal(t)}
-                    </div>
-                    <div className="text-xs text-[#9aa0a6] mt-0.5">
-                      {new Date(t.created_at).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                        <span className="mx-1">·</span>
+                        <span className="capitalize">{t.budget}</span>
+                        <span className="mx-1">·</span>
+                        <span className="capitalize">{t.travel_style}</span>
+                      </div>
+                      <div className="text-xs text-[#9aa0a6] shrink-0">
+                        {new Date(t.created_at).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </div>
                     </div>
                   </div>
                 </Link>
@@ -201,7 +201,7 @@ export default function TripsPage() {
                 <button
                   onClick={() => deleteTrip(t.id)}
                   disabled={deleting === t.id}
-                  className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition"
+                  className="md:opacity-0 md:group-hover:opacity-100 p-2 rounded-full hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition shrink-0"
                   title="Delete trip"
                 >
                   {deleting === t.id ? (

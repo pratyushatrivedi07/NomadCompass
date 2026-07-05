@@ -294,7 +294,7 @@ export default function SetupPage() {
           {/* ── Step 3 — Budget ───────────────────────────────────────────── */}
           {step >= 3 && (
             <Step n={3} title="Daily budget" locked={isGenerating}>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {budgets.map((b) => (
                   <button
                     key={b.id}
@@ -305,7 +305,7 @@ export default function SetupPage() {
                     }}
                     disabled={isGenerating}
                     className={cx(
-                      `rounded-xl border p-4 text-left transition
+                      `rounded-xl border p-2.5 sm:p-4 text-left transition
                        ${
                          budget === b.id
                            ? "border-[#1a73e8] bg-[#e8f0fe]"
@@ -314,9 +314,9 @@ export default function SetupPage() {
                       isGenerating ? DISABLED_OVERLAY : undefined,
                     )}
                   >
-                    <div className="mb-2 text-2xl">{b.emoji}</div>
-                    <div className="font-medium text-[#202124]">{b.label}</div>
-                    <div className="text-xs text-[#5f6368]">{b.sub}</div>
+                    <div className="mb-1.5 sm:mb-2 text-xl sm:text-2xl">{b.emoji}</div>
+                    <div className="font-medium text-[#202124] text-xs sm:text-base">{b.label}</div>
+                    <div className="text-[10px] sm:text-xs text-[#5f6368] mt-0.5">{b.sub}</div>
                   </button>
                 ))}
               </div>
@@ -339,7 +339,7 @@ export default function SetupPage() {
                       }}
                       disabled={isGenerating}
                       className={cx(
-                        `flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition
+                        `flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm transition
                          ${
                            travelStyle === s.id
                              ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
@@ -349,7 +349,7 @@ export default function SetupPage() {
                       )}
                     >
                       <Icon className="h-4 w-4" />
-                      <span>{s.label}</span>
+                      <span className="text-center leading-tight">{s.label}</span>
                     </button>
                   );
                 })}
