@@ -51,6 +51,27 @@ const CITIES_WITH_METRO = new Set([
   "delhi",
 ]);
 
+const GENERIC_LINE_NAMES = new Set([
+  "bus",
+  "metro",
+  "subway",
+  "mrt",
+  "train",
+  "taxi",
+  "dtc bus",
+  "tube",
+  "tram",
+]);
+
+function isRealLine(line: string | null | undefined): boolean {
+  if (!line || line.trim() === "" || line === "null") return false;
+  return !GENERIC_LINE_NAMES.has(line.trim().toLowerCase());
+}
+
+function isRealStop(stop: string | null | undefined): boolean {
+  return !!stop && stop !== "null" && stop.trim() !== "";
+}
+
 export function enforceTransportModes(
   parsed: any,
   city: string,
@@ -74,43 +95,19 @@ export function enforceTransportModes(
       const t = stop.transport_from_previous ?? {};
       const currentMode = (t.mode ?? "walk").toLowerCase();
 
-      // Never touch these — they're correct as-is
       if (currentMode === "start") return stop;
-      if (currentMode === "ferry") {
-        // Only keep ferry if it's actually a water crossing (dist check is unreliable for ferry)
-        // Keep as-is — ferry data comes from AI which knows the geography
-        return stop;
-      }
-      if (currentMode === "cab") return stop; // AI explicitly chose cab — respect it
+      if (currentMode === "ferry") return stop;
+      if (currentMode === "cab") return stop;
 
-      // Check if bus/metro has real route data
-      const hasRealLine =
-        t.line &&
-        t.line.toLowerCase() !== "bus" &&
-        t.line.toLowerCase() !== "metro" &&
-        t.line.toLowerCase() !== "subway" &&
-        t.line.toLowerCase() !== "dtc bus" &&
-        t.line.toLowerCase() !== "taxi" &&
-        t.line.trim() !== "";
+      const hasGoodLine = isRealLine(t.line);
+      const hasGoodStops = isRealStop(t.from_stop) && isRealStop(t.to_stop);
+      const aiFare = t.fare ?? 0;
 
-      const hasRealStops =
-        t.from_stop &&
-        t.to_stop &&
-        t.from_stop !== "null" &&
-        t.to_stop !== "null";
-
-      let correctedMode = currentMode;
-      let correctedFare = t.fare ?? 0;
-      let correctedLine = t.line ?? null;
-      let correctedFromStop = t.from_stop ?? null;
-      let correctedToStop = t.to_stop ?? null;
-
-      // Walking style override — walk anything under 1.5km
+      // Walking style override — walk up to 1.5 km
       if (travelStyle === "walking" && dist < 1.5) {
         return {
           ...stop,
           transport_from_previous: {
-            ...t,
             mode: "walk",
             fare: 0,
             line: null,
@@ -121,94 +118,100 @@ export function enforceTransportModes(
         };
       }
 
-      if (dist < 1.2) {
-        // Short distance — always walk regardless of what AI said
-        correctedMode = "walk";
-        correctedFare = 0;
-        correctedLine = null;
-        correctedFromStop = null;
-        correctedToStop = null;
-      } else if (dist < 4) {
-        // Medium distance
-        if (currentMode === "walk") {
-          // AI said walk but it's too far — upgrade
-          if (hasMetro) {
-            correctedMode = "metro";
-            correctedFare = transit.metroFare;
-            correctedLine = t.line && hasRealLine ? t.line : null;
-            correctedFromStop = hasRealStops ? t.from_stop : null;
-            correctedToStop = hasRealStops ? t.to_stop : null;
-          } else {
-            correctedMode = "cab";
-            correctedFare = Math.round(dist * 20);
-            correctedLine = "Taxi";
-            correctedFromStop = prev.name;
-            correctedToStop = stop.name;
-          }
-        } else if (currentMode === "bus") {
-          if (!hasRealLine || !hasRealStops) {
-            // Bus without real data — downgrade to metro or cab
-            if (hasMetro) {
-              correctedMode = "metro";
-              correctedFare = transit.metroFare;
-              correctedLine = null;
-              correctedFromStop = null;
-              correctedToStop = null;
-            } else {
-              correctedMode = "cab";
-              correctedFare = Math.round(dist * 20);
-              correctedLine = "Taxi";
-              correctedFromStop = prev.name;
-              correctedToStop = stop.name;
-            }
-          }
-          // Bus with real data — keep it as-is
-        } else if (currentMode === "metro") {
-          correctedFare = transit.metroFare;
-          // Keep line/stops from AI if they look real
-        }
-      } else {
-        // Long distance — metro or cab
-        if (currentMode === "walk") {
-          if (hasMetro) {
-            correctedMode = "metro";
-            correctedFare = transit.metroFare;
-            correctedLine = hasRealLine ? t.line : null;
-            correctedFromStop = hasRealStops ? t.from_stop : null;
-            correctedToStop = hasRealStops ? t.to_stop : null;
-          } else {
-            correctedMode = "cab";
-            correctedFare = Math.round(dist * 20);
-            correctedLine = "Taxi";
-            correctedFromStop = prev.name;
-            correctedToStop = stop.name;
-          }
-        } else if (currentMode === "bus" && (!hasRealLine || !hasRealStops)) {
-          correctedMode = "metro";
-          correctedFare = transit.metroFare;
-          correctedLine = null;
-          correctedFromStop = null;
-          correctedToStop = null;
-        } else if (currentMode === "metro") {
-          correctedFare = transit.metroFare;
-        }
+      // Short distance — always walk
+      if (dist < 1.0) {
+        return {
+          ...stop,
+          transport_from_previous: {
+            mode: "walk",
+            fare: 0,
+            line: null,
+            from_stop: null,
+            to_stop: null,
+            walk_to_stop_mins: Math.round((dist * 1000) / 80),
+          },
+        };
       }
 
-      return {
-        ...stop,
-        transport_from_previous: {
-          ...t,
-          mode: correctedMode,
-          fare: correctedFare,
-          line: correctedLine,
-          from_stop: correctedFromStop,
-          to_stop: correctedToStop,
-          walk_to_stop_mins:
-            correctedMode === "walk"
-              ? Math.round((dist * 1000) / 80)
-              : (t.walk_to_stop_mins ?? null),
-        },
-      };
+      // AI said walk but it's too far — upgrade
+      if (currentMode === "walk" && dist >= 1.0) {
+        if (hasMetro) {
+          return {
+            ...stop,
+            transport_from_previous: {
+              mode: "metro",
+              fare: transit.metroFare,
+              line: null,
+              from_stop: null,
+              to_stop: null,
+              walk_to_stop_mins: null,
+            },
+          };
+        }
+        return {
+          ...stop,
+          transport_from_previous: {
+            mode: "cab",
+            fare: Math.round(dist * 20),
+            line: "Taxi",
+            from_stop: prev.name,
+            to_stop: stop.name,
+            walk_to_stop_mins: null,
+          },
+        };
+      }
+
+      // Bus/metro/train with good data from AI — keep it, trust AI fare
+      if (hasGoodLine && hasGoodStops && aiFare > 0) {
+        return stop;
+      }
+
+      // Bus/metro/train with generic or missing data — fix it
+      if (currentMode === "bus" && (!hasGoodLine || !hasGoodStops)) {
+        if (hasMetro) {
+          return {
+            ...stop,
+            transport_from_previous: {
+              mode: "metro",
+              fare: aiFare > 0 ? aiFare : transit.metroFare,
+              line: hasGoodLine ? t.line : null,
+              from_stop: hasGoodStops ? t.from_stop : null,
+              to_stop: hasGoodStops ? t.to_stop : null,
+              walk_to_stop_mins: t.walk_to_stop_mins ?? null,
+            },
+          };
+        }
+        return {
+          ...stop,
+          transport_from_previous: {
+            mode: "cab",
+            fare: Math.round(dist * 20),
+            line: "Taxi",
+            from_stop: prev.name,
+            to_stop: stop.name,
+            walk_to_stop_mins: null,
+          },
+        };
+      }
+
+      if (
+        (currentMode === "metro" || currentMode === "train") &&
+        !hasGoodLine
+      ) {
+        // Strip generic line name but keep the mode and AI fare
+        return {
+          ...stop,
+          transport_from_previous: {
+            ...t,
+            line: null,
+            from_stop: hasGoodStops ? t.from_stop : null,
+            to_stop: hasGoodStops ? t.to_stop : null,
+            fare: aiFare > 0 ? aiFare : transit.metroFare,
+          },
+        };
+      }
+
+      return stop;
     });
 
     const recalcTotal = correctedStops.reduce(
@@ -264,26 +267,35 @@ export function parseItineraryJson(content: string): any {
   }
 }
 
-export const SYSTEM_PROMPT = `Travel logistics engine. Return valid JSON only. No markdown.
+export const SYSTEM_PROMPT = `You are a travel logistics engine for first-time tourists. Return valid JSON only. No markdown.
 
-TRANSPORT MODES (use in this priority order):
-- start: first stop each day. fare=0, all others null.
-- walk: under 1km only. fare=0, line=null, stops=null.
-- bus: 1–4km, real numbered route confirmed. line="route number only" (e.g. "15" not "Bus 15"). from_stop and to_stop = real stop names. If route unknown → use cab.
-- metro: over 2km, real line confirmed. line="line name only" (e.g. "Central Line" not "Metro Central Line"). from_stop and to_stop = real station names. If line unknown → use cab.
-- train: suburban/overground rail. Same rules as metro.
-- ferry: water crossings only. line=service name, from_stop=pier, to_stop=pier. Never use for land routes.
-- cab: last resort when no public transit confirmed. line="Taxi", from_stop=origin name, to_stop=destination name.
+GEOGRAPHIC ORDERING (CRITICAL):
+- Plan each day's stops as a WALKING ROUTE on a map — sequential, no backtracking.
+- Pick a starting neighbourhood, then move in ONE direction (e.g. north→south, or clockwise).
+- The route from stop A→B→C→D must NEVER cross itself. If you drew lines between consecutive stops on a map, no two lines should intersect.
+- Group nearby attractions together on the same day. Never zigzag across the city.
 
-HARD RULES:
-- line field never equals "Bus", "Metro", "Subway", "Taxi" alone
-- from_stop and to_stop required for bus/metro/train/ferry/cab — never null
-- Never walk over 1km
-- Never invent a route number or station name
-- All fares in local city currency
-- 4–5 stops/day, exactly 1 food stop at meal time
-- Stops ordered geographically, no route crossings
-- daily_total_cost = sum of entry_cost + all fares that day`;
+TRANSPORT MODES — use in this priority order:
+- start: first stop each day. fare=0, line=null, from_stop=null, to_stop=null.
+- walk: under 1 km. fare=0, line=null, from_stop=null, to_stop=null, walk_to_stop_mins=estimated walk time.
+- bus: 1–4 km, ONLY if you know the real route number. line=route number only (e.g. "15" not "Bus 15"). from_stop=real bus stop name. to_stop=real bus stop name. fare=actual fare in local currency.
+- metro: over 1.5 km, ONLY if you know the real line name. line=line name only (e.g. "Central Line" not "Metro Central Line", "Ginza Line" not "Metro Ginza Line"). from_stop=real station name. to_stop=real station name. fare=actual fare in local currency.
+- train: suburban/overground rail. Same rules as metro — real line name, real station names, real fare.
+- ferry: water crossings only. line=service name, from_stop=pier name, to_stop=pier name.
+- cab: ONLY when no public transit route is known, OR when the user selected comfort style. line="Taxi", from_stop=origin place name, to_stop=destination place name. fare=realistic estimated fare for that city.
+
+TRANSPORT HARD RULES:
+- line field must NEVER equal generic words like "Bus", "Metro", "Subway", "MRT", "Train", "Taxi" alone — it must be a specific route/line name or null.
+- from_stop and to_stop are REQUIRED (never null) for bus, metro, train, ferry, and cab.
+- from_stop and to_stop are real place names that exist — never invent them.
+- fare must be a realistic cost in the local currency for that specific journey — not a flat default. Use your knowledge of actual transit pricing in that city (e.g. Tokyo Metro is ¥170–¥320 depending on distance, London Tube is £2.80 peak, Delhi Metro is ₹20–₹60 by distance).
+- If you cannot confirm a real route number or line name, use cab instead of guessing.
+
+ITINERARY RULES:
+- 4–5 stops per day, including exactly 1 food stop at a logical meal time.
+- daily_total_cost = sum of all entry_cost + all transport fares for that day.
+- trip_total_cost = sum of all daily totals.
+- All monetary values in the local currency of the city.`;
 
 export function buildUserPrompt(
   city: string,
@@ -293,21 +305,31 @@ export function buildUserPrompt(
   mustVisit: string[],
 ): string {
   const currency = getCurrency(city);
-  const budgetMap: Record<string, string> = {
-    budget: "low budget, free/cheap attractions",
-    mid: "mid-range, mix of paid and free",
-    comfort: "comfort, premium experiences",
-  };
-  const styleMap: Record<string, string> = {
-    public: "public transit preferred over cab",
-    walking: "walk under 1km, transit beyond",
-    mixed: "walk short, transit or cab for longer legs",
+
+  const budgetInstructions: Record<string, string> = {
+    budget: `LOW BUDGET — prioritise free attractions, street food, public parks, free museum days, markets. Food stops should be cheap local eateries or street food (not restaurants). Avoid anything with entry cost over ${currency.symbol}${budget === "budget" ? "10" : "15"} equivalent. Total daily spend should stay within the budget tier for ${city}.`,
+    mid: `MID-RANGE — mix of paid attractions and free ones. Food stops should be good local restaurants (not luxury, not street food). Entry costs for premium attractions are fine. Balance between popular tourist spots and local gems.`,
+    comfort: `COMFORT / PREMIUM — focus on the best experiences regardless of cost. Include premium restaurants, skip-the-line attractions, exclusive experiences. Prefer cab/private transport over crowded public transit for longer legs. Choose comfort and convenience over saving money.`,
   };
 
-  return `${days}-day itinerary for ${city}.
-Budget: ${budgetMap[budget] ?? budget}
-Style: ${styleMap[travelStyle] ?? travelStyle}
-Must include: ${mustVisit.length ? mustVisit.join(", ") : "none"}
-All costs in ${currency.code} (${currency.symbol}).
-Verify every bus route number and metro line name is real in ${city}. Use cab if uncertain.`;
+  const styleInstructions: Record<string, string> = {
+    public: `PUBLIC TRANSPORT PREFERRED — use real bus routes and metro/subway lines for all distances over 1 km. Only use cab if genuinely no public transit option exists for that leg. The traveller wants to experience the city's transit system. Always provide the specific line name, boarding stop, and alighting stop.`,
+    walking: `WALKING PREFERRED — group stops within walkable clusters (under 1.5 km apart). Only use transit for legs over 1.5 km. Maximise walking between nearby stops. The traveller enjoys exploring on foot and wants stops that are geographically tight.`,
+    mixed: `MIXED TRANSPORT — walk for short distances (under 1 km), use public transit or cab for longer legs. Balance convenience with cost. For comfort budget, lean towards cab for distances over 3 km.`,
+  };
+
+  return `Plan a ${days}-day tourist itinerary for ${city}.
+
+BUDGET: ${budgetInstructions[budget] ?? budget}
+
+TRAVEL STYLE: ${styleInstructions[travelStyle] ?? travelStyle}
+
+${mustVisit.length ? `MUST INCLUDE THESE PLACES: ${mustVisit.join(", ")}. Work them into the itinerary at logical points in the geographic route.` : ""}
+
+CRITICAL REMINDERS:
+- All costs in ${currency.code} (${currency.symbol}).
+- Order stops geographically — move in one direction, no criss-crossing.
+- Every bus/metro/train must have a REAL line name and REAL stop names that exist in ${city}.
+- Every fare must be a realistic price for that specific journey in ${city}, not a flat default.
+- If you are unsure about a transit route, use cab instead of guessing.`;
 }
