@@ -170,3 +170,51 @@
     max-width: none !important;
   }
 }
+
+/* ── Sonner toast overrides ─────────────────────────────────────────────── */
+
+/* 1. Global Container Rounded Corners Match */
+[data-sonner-toast][data-styled="true"] {
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+}
+
+/* 2. Scaled-up Close Button positioned higher up than the text line */
+[data-sonner-toast][data-styled="true"] [data-close-button] {
+  left: unset !important;
+  right: 14px !important;
+  top: 11px !important;
+  transform: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  background-color: transparent !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Force thick vector strokes on the close icon lines */
+[data-sonner-toast][data-styled="true"] [data-close-button] svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 3px !important; /* Forces a thicker vector line width */
+}
+
+/* Fallback override to ensure paths inside the SVG accept the thickness */
+[data-sonner-toast][data-styled="true"] [data-close-button] svg path,
+[data-sonner-toast][data-styled="true"] [data-close-button] svg line {
+  stroke-width: 3px !important;
+}
+
+/* 3. Safe Padding Zone to Defend Against Long Messages Wrapping Underneath */
+[data-sonner-toast][data-styled="true"] [data-content] {
+  padding-right: 28px !important;
+}
+
+/* On mobile viewports, enforce container fluid layout boundaries */
+@media (max-width: 600px) {
+  [data-sonner-toast] {
+    max-width: 100% !important;
+  }
+}

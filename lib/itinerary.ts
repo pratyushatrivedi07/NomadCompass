@@ -292,7 +292,7 @@ TRANSPORT HARD RULES:
 - If you cannot confirm a real route number or line name, use cab instead of guessing.
 
 ITINERARY RULES:
-- 4–5 stops per day, including exactly 1 food stop at a logical meal time.
+- 5-6 stops per day, including exactly 1 food stop at a logical meal time, but exclude when doing a full-day tour like an amusement park, studio tour.
 - daily_total_cost = sum of all entry_cost + all transport fares for that day.
 - trip_total_cost = sum of all daily totals.
 - All monetary values in the local currency of the city.`;
