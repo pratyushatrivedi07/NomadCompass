@@ -21,17 +21,17 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// const globalLimiter = new Ratelimit({
-//   redis,
-//   limiter: Ratelimit.fixedWindow(200, "24 h"),
-//   prefix: "global",
-// });
+const globalLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.fixedWindow(200, "24 h"),
+  prefix: "global",
+});
 
-// const ipLimiter = new Ratelimit({
-//   redis,
-//   limiter: Ratelimit.fixedWindow(3, "24 h"),
-//   prefix: "ip",
-// });
+const ipLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.fixedWindow(3, "24 h"),
+  prefix: "ip",
+});
 
 // Extract JSON from Gemini response — handles both structured output and text
 function extractJson(candidate: any): any {
@@ -78,6 +78,14 @@ function extractJson(candidate: any): any {
   );
 }
 
+// 20s: fire fallback if primary hasn't responded by then
+const PRIMARY_TIMEOUT_MS = 20_000;
+// 50s hard cap: abort everything if neither model responds
+const HARD_TIMEOUT_MS = 50_000;
+
+const PRIMARY_MODEL = "gemini-3.5-flash";
+const FALLBACK_MODEL = "gemini-3.1-flash-lite";
+
 function buildRequestBody(
   systemPrompt: string,
   userPrompt: string,
@@ -88,11 +96,40 @@ function buildRequestBody(
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 10000,
+      // 5 days × 6 stops × ~150 tokens/stop ≈ 5 250 tokens; 6000 is safe
+      maxOutputTokens: 6000,
       response_mime_type: "application/json",
       response_schema: schema,
     },
   });
+}
+
+// Fetch with an AbortController timeout. Returns null on timeout instead of throwing.
+async function callGeminiWithTimeout(
+  model: string,
+  apiKey: string,
+  body: string,
+  timeoutMs: number,
+): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+      },
+    );
+    return res;
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") return null;
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function callGeminiWithFallback(
@@ -100,32 +137,51 @@ async function callGeminiWithFallback(
   systemPrompt: string,
   userPrompt: string,
   schema: object,
-): Promise<Response> {
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: buildRequestBody(systemPrompt, userPrompt, schema),
-      },
-    );
+): Promise<{ res: Response; model: string }> {
+  const body = buildRequestBody(systemPrompt, userPrompt, schema);
 
-    if (res.ok) return res;
+  // Attempt primary with a 20 s deadline
+  const primary = await callGeminiWithTimeout(
+    PRIMARY_MODEL,
+    apiKey,
+    body,
+    PRIMARY_TIMEOUT_MS,
+  );
 
-    // Only retry on 429 (rate limit) or 503 (overloaded/unavailable)
-    if (res.status !== 429 && res.status !== 503) {
-      // 400, 401, 404 etc. — no point retrying different models
-      throw new Error(`Gemini error ${res.status}`);
-    }
-  } catch (err: unknown) {
+  if (primary?.ok) {
+    return { res: primary, model: PRIMARY_MODEL };
+  }
+
+  // Non-retryable error from primary — don't bother with fallback
+  if (primary !== null && primary.status !== 429 && primary.status !== 503) {
+    throw new Error(`Gemini ${PRIMARY_MODEL} failed (${primary.status})`);
+  }
+
+  const reason =
+    primary === null ? "timeout (>20 s)" : `HTTP ${primary.status}`;
+  console.warn(`${PRIMARY_MODEL} ${reason} — switching to ${FALLBACK_MODEL}`);
+
+  // Fallback gets the remaining time from the hard cap
+  const fallback = await callGeminiWithTimeout(
+    FALLBACK_MODEL,
+    apiKey,
+    body,
+    HARD_TIMEOUT_MS - PRIMARY_TIMEOUT_MS,
+  );
+
+  if (fallback === null || fallback.status === 429 || fallback.status === 503) {
+    const err = new Error("GEMINI_SPIKE");
+    err.name = "GEMINI_SPIKE";
     throw err;
   }
 
-  // spike error
-  const spikeError = new Error("GEMINI_SPIKE");
-  spikeError.name = "GEMINI_SPIKE";
-  throw spikeError;
+  if (!fallback.ok) {
+    throw new Error(
+      `Fallback model ${FALLBACK_MODEL} failed (${fallback.status})`,
+    );
+  }
+
+  return { res: fallback, model: FALLBACK_MODEL };
 }
 
 export async function POST(req: Request) {
@@ -135,24 +191,24 @@ export async function POST(req: Request) {
       .split(",")[0]
       .trim();
 
-    // const { success: globalOk } = await globalLimiter.limit("global");
-    // if (!globalOk) {
-    //   return NextResponse.json(
-    //     { error: "Daily site capacity reached. Try again tomorrow." },
-    //     { status: 429 },
-    //   );
-    // }
+    const { success: globalOk } = await globalLimiter.limit("global");
+    if (!globalOk) {
+      return NextResponse.json(
+        { error: "Daily site capacity reached. Try again tomorrow." },
+        { status: 429 },
+      );
+    }
 
-    // const { success: userOk, reset } = await ipLimiter.limit(ip);
-    // if (!userOk) {
-    //   const hoursLeft = Math.ceil((reset - Date.now()) / 3_600_000);
-    //   return NextResponse.json(
-    //     {
-    //       error: `Daily limit reached. Try again in ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
-    //     },
-    //     { status: 429 },
-    //   );
-    // }
+    const { success: userOk, reset } = await ipLimiter.limit(ip);
+    if (!userOk) {
+      const hoursLeft = Math.ceil((reset - Date.now()) / 3_600_000);
+      return NextResponse.json(
+        {
+          error: `Daily limit reached. Try again in ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
+        },
+        { status: 429 },
+      );
+    }
 
     // Parse + validate input
     const body = await req.json();
@@ -242,8 +298,9 @@ export async function POST(req: Request) {
 
     // Call Gemini
     let geminiRes: Response;
+    let modelUsed: string;
     try {
-      geminiRes = await callGeminiWithFallback(
+      const result = await callGeminiWithFallback(
         apiKey,
         SYSTEM_PROMPT,
         buildUserPrompt(
@@ -255,6 +312,8 @@ export async function POST(req: Request) {
         ),
         RESPONSE_SCHEMA,
       );
+      geminiRes = result.res;
+      modelUsed = result.model;
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "GEMINI_SPIKE") {
         return Response.json(
@@ -323,7 +382,9 @@ export async function POST(req: Request) {
       data.city,
       data.travelStyle,
     );
-    return NextResponse.json(corrected);
+    return NextResponse.json(corrected, {
+      headers: { "x-model-used": modelUsed! },
+    });
   } catch (e: any) {
     console.error("Route error:", e.message, e.stack);
 
