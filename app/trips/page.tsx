@@ -24,7 +24,7 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const fetchTrips = () => {
+  useEffect(() => {
     supabase
       .from("trips")
       .select(
@@ -36,10 +36,6 @@ export default function TripsPage() {
         setTrips(data ?? []);
         setLoading(false);
       });
-  };
-
-  useEffect(() => {
-    fetchTrips();
   }, []);
 
   const deleteTrip = async (id: string) => {
@@ -151,42 +147,97 @@ export default function TripsPage() {
             {trips.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center gap-3 rounded-2xl border border-[#dadce0] bg-white p-3 md:p-4 hover:shadow-sm transition group"
+                className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 rounded-2xl border border-[#dadce0] bg-white p-3.5 md:p-4 hover:shadow-sm transition group relative"
               >
-                <Link
-                  href={`/t/${t.share_slug}`}
-                  className="flex-1 flex items-center gap-3 md:gap-4 min-w-0"
-                >
-                  {/* City icon */}
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0">
-                    <MapPin className="h-5 w-5 text-[#1a73e8]" />
+                {/* Mobile Top Header Row: City + Pill + Delete Icon */}
+                <div className="flex items-center justify-between gap-2 md:hidden">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* City Icon (Mobile) */}
+                    <div className="w-10 h-10 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0">
+                      <MapPin className="h-5 w-5 text-[#1a73e8]" />
+                    </div>
+
+                    {/* City & Reduced Pill */}
+                    <div
+                      className="flex items-center gap-1.5 font-semibold text-[#202124] text-base capitalize min-w-0"
+                      style={{
+                        fontFamily: "'Google Sans', Roboto, sans-serif",
+                      }}
+                    >
+                      <span className="truncate">{t.city}</span>
+                    </div>
                   </div>
 
-                  {/* Trip info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
+                  {/* Delete Button (Mobile Header Inline) */}
+                  <button
+                    onClick={() => deleteTrip(t.id)}
+                    disabled={deleting === t.id}
+                    className="p-2 rounded-full bg-gray-50 hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition shrink-0"
+                    title="Delete trip"
+                  >
+                    {deleting === t.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Main Content Component Area */}
+                <Link
+                  href={`/t/${t.share_slug}`}
+                  className="flex-1 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 min-w-0"
+                >
+                  {/* Desktop-Only City Icon */}
+                  <div className="hidden md:flex w-14 h-14 rounded-xl bg-[#e8f0fe] flex items-center justify-center shrink-0 self-center">
+                    <MapPin className="h-6 w-6 text-[#1a73e8]" />
+                  </div>
+
+                  {/* Info Layout Split Grid */}
+                  <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+                    {/* Text and Meta Tags */}
+                    <div className="flex flex-col space-y-1 min-w-0">
+                      {/* Desktop-Only Header Row */}
                       <div
-                        className="font-medium text-[#202124] capitalize truncate"
+                        className="hidden md:flex items-center gap-2 font-medium text-[#202124] capitalize text-base"
                         style={{
                           fontFamily: "'Google Sans', Roboto, sans-serif",
                         }}
                       >
-                        {t.city}
+                        <span className="truncate">{t.city}</span>
                       </div>
-                      <div className="text-sm font-medium text-[#202124] shrink-0">
-                        {getTripTotal(t)}
+
+                      {/* Meta Tags Details */}
+                      <div className="flex items-center gap-1.5 text-xs text-[#5f6368] flex-wrap pl-1 md:pl-0">
+                        <Calendar className="h-3.5 w-3.5 shrink-0 text-[#70757a]" />
+                        <span className="shrink-0">{getDayCount(t)} days</span>
+                        <span>·</span>
+                        <span className="capitalize shrink-0">{t.budget}</span>
+                        <span>·</span>
+                        <span className="capitalize shrink-0">
+                          {t.travel_style}
+                        </span>
+                        <span>·</span>
+                        <span
+                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 tracking-wide ${
+                            t.itinerary?._sharedAt
+                              ? "bg-[#e6f4ea] text-[#137333]"
+                              : "bg-[#e8f0fe] text-[#1a73e8]"
+                          }`}
+                        >
+                          {t.itinerary?._sharedAt ? "Shared" : "Saved"}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-baseline justify-between gap-2 mt-0.5">
-                      <div className="text-xs text-[#5f6368] whitespace-nowrap">
-                        <Calendar className="inline h-3 w-3 -mt-px mr-1" />
-                        {getDayCount(t)} days
-                        <span className="mx-1">·</span>
-                        <span className="capitalize">{t.budget}</span>
-                        <span className="mx-1">·</span>
-                        <span className="capitalize">{t.travel_style}</span>
+
+                    {/* Pricing and Date Row */}
+                    {/* Mobile: Horizontal footer row layout | Desktop: Vertical stack aligned right */}
+                    <div className="flex items-center justify-between md:flex-col md:items-end md:justify-center shrink-0 pt-2.5 md:pt-0 border-t border-[#f1f3f4] md:border-none pl-1 md:pl-0">
+                      <div className="text-base md:text-sm font-semibold text-[#202124]">
+                        {getTripTotal(t)}
                       </div>
-                      <div className="text-xs text-[#9aa0a6] shrink-0">
+
+                      <div className="text-xs text-[#9aa0a6] md:mt-1">
                         {new Date(t.created_at).toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "short",
@@ -197,11 +248,11 @@ export default function TripsPage() {
                   </div>
                 </Link>
 
-                {/* Delete button */}
+                {/* Desktop-Only Hover Reveal Delete Button */}
                 <button
                   onClick={() => deleteTrip(t.id)}
                   disabled={deleting === t.id}
-                  className="md:opacity-0 md:group-hover:opacity-100 p-2 rounded-full hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition shrink-0"
+                  className="hidden md:block md:opacity-0 md:group-hover:opacity-100 p-2 rounded-full hover:bg-[#fce8e6] text-[#9aa0a6] hover:text-[#ea4335] transition shrink-0 self-center"
                   title="Delete trip"
                 >
                   {deleting === t.id ? (

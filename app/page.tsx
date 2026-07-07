@@ -61,7 +61,6 @@ export default function SetupPage() {
   const [mustVisit, setMustVisit] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const budgetRanges = useMemo(() => getBudgetRanges(city), [city]);
   const budgets = [
@@ -82,7 +81,6 @@ export default function SetupPage() {
   const submit = async () => {
     if (!city.trim() || !budget || !travelStyle) return;
     setLoading(true);
-    setIsGenerating(true);
 
     track("generate_clicked", {
       city: city.trim(),
@@ -121,7 +119,7 @@ export default function SetupPage() {
           toast.error(
             "AI models are experiencing a spike in traffic. Please try again in a moment.",
             {
-              duration: 12_000, // 12 s — prominent but not forever
+              duration: 8_000, // 12 s — prominent but not forever
               id: "gemini-spike", // deduplicate if user hammers the button
             },
           );
@@ -136,7 +134,7 @@ export default function SetupPage() {
           });
           toast.error(
             "You've hit today's generation limit. Come back tomorrow or try again later.",
-            { duration: 12_000 },
+            { duration: 8_000 },
           );
           return;
         }
@@ -173,13 +171,12 @@ export default function SetupPage() {
       track("generate_failed", { city: city.trim(), error_type: "generic" });
       toast.error(
         `${e instanceof Error ? e.message : "Couldn't generate itinerary — please try again."}`,
-        { duration: 12_000 },
+        { duration: 8_000 },
       );
     } finally {
       // Re-enable the form whether we errored or navigated away.
       // On success, the router.push unmounts this component anyway.
       setLoading(false);
-      setIsGenerating(false);
     }
   };
 
@@ -190,35 +187,35 @@ export default function SetupPage() {
     >
       {/* Header */}
       <header className="border-b border-[#dadce0] bg-white sticky top-0 z-10">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 md:px-6 py-3">
           <div className="flex items-center gap-2">
             <NomadCompassLogo />
-            <span className="text-lg font-medium text-[#202124]">
+            <span className="text-base md:text-lg font-medium text-[#202124]">
               Nomad's Compass
             </span>
           </div>
           <Link
             href="/trips"
-            className="text-sm font-medium text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] px-3 py-1.5 rounded-full transition"
+            className="text-xs md:text-sm font-medium text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] px-3 py-1.5 rounded-full transition"
           >
             My Trips
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-10">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-medium text-[#202124] tracking-tight">
+      <main className="mx-auto max-w-2xl px-4 md:px-6 py-6 md:py-10">
+        <div className="mb-6 md:mb-8 text-center">
+          <h1 className="text-2xl md:text-3xl font-medium text-[#202124] tracking-tight">
             Plan your perfect trip
           </h1>
-          <p className="mt-2 text-[#5f6368]">
+          <p className="mt-1 md:mt-2 text-sm md:text-base text-[#5f6368]">
             A few quick questions and we'll map it for you.
           </p>
         </div>
 
-        <div className="space-y-6 rounded-2xl border border-[#dadce0] bg-white p-8 shadow-sm">
+        <div className="space-y-6 rounded-2xl border border-[#dadce0] bg-white p-4 sm:p-6 md:p-8 shadow-sm">
           {/* ── Step 1 — City ─────────────────────────────────────────────── */}
-          <Step n={1} title="Where are you going?" locked={isGenerating}>
+          <Step n={1} title="Where are you going?" locked={loading}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {cities.map((c) => (
                 <button
@@ -229,7 +226,7 @@ export default function SetupPage() {
                     setStep((s) => Math.max(s, 2));
                     track("city_selected", { city: c.name.toLowerCase() });
                   }}
-                  disabled={isGenerating}
+                  disabled={loading}
                   className={cx(
                     // ── base styles (always applied) ──
                     `flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition
@@ -239,11 +236,11 @@ export default function SetupPage() {
                          : "border-[#dadce0] text-[#202124] hover:bg-[#f1f3f4]"
                      }`,
                     // ── disabled overlay (layered on top, never replaces) ──
-                    isGenerating ? DISABLED_OVERLAY : undefined,
+                    loading ? DISABLED_OVERLAY : undefined,
                   )}
                 >
                   <span className="text-base">{c.flag}</span>
-                  <span className="font-medium">{c.name}</span>
+                  <span className="font-medium truncate">{c.name}</span>
                 </button>
               ))}
             </div>
@@ -254,14 +251,14 @@ export default function SetupPage() {
 
           {/* ── Step 2 — Days ─────────────────────────────────────────────── */}
           {step >= 2 && (
-            <Step n={2} title="How many days?" locked={isGenerating}>
+            <Step n={2} title="How many days?" locked={loading}>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setDays(Math.max(1, days - 1))}
-                  disabled={isGenerating}
+                  disabled={loading}
                   className={cx(
                     "w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition",
-                    isGenerating ? DISABLED_OVERLAY : undefined,
+                    loading ? DISABLED_OVERLAY : undefined,
                   )}
                 >
                   −
@@ -271,15 +268,15 @@ export default function SetupPage() {
                 </div>
                 <button
                   onClick={() => setDays(Math.min(5, days + 1))}
-                  disabled={isGenerating}
+                  disabled={loading}
                   className={cx(
                     "w-9 h-9 rounded-full border border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4] flex items-center justify-center text-lg transition",
-                    isGenerating ? DISABLED_OVERLAY : undefined,
+                    loading ? DISABLED_OVERLAY : undefined,
                   )}
                 >
                   +
                 </button>
-                {step === 2 && !isGenerating && (
+                {step === 2 && !loading && (
                   <button
                     onClick={() => setStep(3)}
                     className="ml-auto flex items-center gap-1 text-sm text-[#1a73e8] hover:underline"
@@ -293,8 +290,8 @@ export default function SetupPage() {
 
           {/* ── Step 3 — Budget ───────────────────────────────────────────── */}
           {step >= 3 && (
-            <Step n={3} title="Daily budget" locked={isGenerating}>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <Step n={3} title="Daily budget" locked={loading}>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                 {budgets.map((b) => (
                   <button
                     key={b.id}
@@ -303,20 +300,28 @@ export default function SetupPage() {
                       setStep((s) => Math.max(s, 4));
                       track("budget_selected", { budget: b.id, city });
                     }}
-                    disabled={isGenerating}
+                    disabled={loading}
                     className={cx(
-                      `rounded-xl border p-2.5 sm:p-4 text-left transition
+                      `rounded-xl border p-2 md:p-4 text-left flex flex-col justify-between transition min-h-[96px] sm:min-h-0
                        ${
                          budget === b.id
                            ? "border-[#1a73e8] bg-[#e8f0fe]"
                            : "border-[#dadce0] hover:bg-[#f1f3f4]"
                        }`,
-                      isGenerating ? DISABLED_OVERLAY : undefined,
+                      loading ? DISABLED_OVERLAY : undefined,
                     )}
                   >
-                    <div className="mb-1.5 sm:mb-2 text-xl sm:text-2xl">{b.emoji}</div>
-                    <div className="font-medium text-[#202124] text-xs sm:text-base">{b.label}</div>
-                    <div className="text-[10px] sm:text-xs text-[#5f6368] mt-0.5">{b.sub}</div>
+                    <div>
+                      <div className="mb-1 sm:mb-2 text-xl sm:text-2xl">
+                        {b.emoji}
+                      </div>
+                      <div className="font-medium text-[#202124] text-[11px] sm:text-base leading-tight">
+                        {b.label}
+                      </div>
+                    </div>
+                    <div className="text-[9px] sm:text-xs text-[#5f6368] mt-1 break-words">
+                      {b.sub}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -325,7 +330,7 @@ export default function SetupPage() {
 
           {/* ── Step 4 — Travel style ─────────────────────────────────────── */}
           {step >= 4 && (
-            <Step n={4} title="Travel style" locked={isGenerating}>
+            <Step n={4} title="Travel style" locked={loading}>
               <div className="grid grid-cols-3 gap-2">
                 {styles.map((s) => {
                   const Icon = s.icon;
@@ -337,19 +342,21 @@ export default function SetupPage() {
                         setStep((cs) => Math.max(cs, 5));
                         track("style_selected", { travel_style: s.id, city });
                       }}
-                      disabled={isGenerating}
+                      disabled={loading}
                       className={cx(
-                        `flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm transition
+                        `flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-xl border px-1.5 sm:px-3 py-2.5 sm:py-3 text-[11px] sm:text-sm transition
                          ${
                            travelStyle === s.id
                              ? "border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]"
                              : "border-[#dadce0] text-[#5f6368] hover:bg-[#f1f3f4]"
                          }`,
-                        isGenerating ? DISABLED_OVERLAY : undefined,
+                        loading ? DISABLED_OVERLAY : undefined,
                       )}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span className="text-center leading-tight">{s.label}</span>
+                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="text-center leading-tight truncate max-w-full">
+                        {s.label}
+                      </span>
                     </button>
                   );
                 })}
@@ -362,40 +369,39 @@ export default function SetupPage() {
             <Step
               n={5}
               title="Any must-visit places? (optional)"
-              locked={isGenerating}
+              locked={loading}
             >
               <input
                 value={mustVisit}
                 onChange={(e) => setMustVisit(e.target.value)}
                 placeholder="e.g. Tower of London, Borough Market"
-                disabled={isGenerating}
+                disabled={loading}
                 className={cx(
-                  "w-full border border-[#dadce0] rounded-xl px-4 py-3 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition",
-                  isGenerating
-                    ? "opacity-50 cursor-not-allowed bg-[#f1f3f4]"
-                    : undefined,
+                  "w-full border border-[#dadce0] rounded-xl px-4 py-3 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]",
                 )}
               />
-              <p className="mt-1.5 text-xs text-[#9aa0a6]">Comma separated.</p>
             </Step>
           )}
-
           {/* ── Submit ────────────────────────────────────────────────────── */}
           {step >= 4 && budget && travelStyle && (
-            <button
-              onClick={submit}
-              disabled={loading || !city.trim()}
-              className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-3 rounded-full transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {loadingMessages[loadingMsgIdx]}
-                </>
-              ) : (
-                "Build My Itinerary"
-              )}
-            </button>
+            <div className="pt-2">
+              <button
+                onClick={submit}
+                disabled={loading || !city.trim()}
+                className="w-full flex items-center justify-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-3 px-4 rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm select-none"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span className="truncate">
+                      {loadingMessages[loadingMsgIdx]}
+                    </span>
+                  </>
+                ) : (
+                  "Build My Itinerary"
+                )}
+              </button>
+            </div>
           )}
         </div>
       </main>

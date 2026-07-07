@@ -66,6 +66,7 @@ export default function TripPage() {
   const sidebarRef = useRef<HTMLElement>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetTouchY = useRef(0);
+  const nominatimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("nomadCompass:current");
@@ -136,21 +137,25 @@ export default function TripPage() {
     track("stop_removed", { city: data.meta.city, day: day.day });
   };
 
-  const searchNominatim = async (query: string) => {
+  const searchNominatim = (query: string) => {
     setNewStopName(query);
+    if (nominatimTimer.current) clearTimeout(nominatimTimer.current);
     if (query.length < 3) {
       setNominatimResults([]);
       return;
     }
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + " " + (data?.meta.city ?? ""))}&format=json&limit=5`,
-        { headers: { "User-Agent": "NomadCompass/1.0" } },
-      );
-      setNominatimResults(await res.json());
-    } catch {
-      setNominatimResults([]);
-    }
+    // Debounce: Nominatim usage policy requires max 1 req/s
+    nominatimTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + " " + (data?.meta.city ?? ""))}&format=json&limit=5`,
+          { headers: { "User-Agent": "NomadCompass/1.0" } },
+        );
+        setNominatimResults(await res.json());
+      } catch {
+        setNominatimResults([]);
+      }
+    }, 400);
   };
 
   const addStopFromNominatim = (r: {
@@ -199,14 +204,32 @@ export default function TripPage() {
     track("stop_added", { city: data.meta.city, day: day.day });
   };
 
-  const save = async () => {
-    if (!data) return;
+  // asShared=true stamps _sharedAt into the itinerary JSON so My Trips can
+  // distinguish "Saved" from "Shared" without a schema change.
+  const save = async (asShared = false): Promise<string | null> => {
+    if (!data) return null;
+
     if (shareUrl) {
-      setModalMode("save");
-      return;
+      // Already saved — if this is a share action and the record isn't yet
+      // marked, update the JSONB in place using the slug we already have.
+      if (asShared && !(data.itinerary as any)._sharedAt) {
+        const slug = shareUrl.split("/t/").pop();
+        const stamped = { ...data.itinerary, _sharedAt: new Date().toISOString() };
+        await supabase
+          .from("trips")
+          .update({ itinerary: stamped as never })
+          .eq("share_slug", slug);
+        persist({ ...data, itinerary: stamped });
+      }
+      return shareUrl;
     }
+
     setSaving(true);
     try {
+      const itineraryPayload = asShared
+        ? { ...data.itinerary, _sharedAt: new Date().toISOString() }
+        : data.itinerary;
+
       const { data: row, error } = await supabase
         .from("trips")
         .insert({
@@ -215,36 +238,41 @@ export default function TripPage() {
           budget: data.meta.budget,
           travel_style: data.meta.travelStyle,
           must_visit: data.meta.mustVisit,
-          itinerary: data.itinerary as never,
+          itinerary: itineraryPayload as never,
         })
         .select("share_slug")
         .single();
       if (error) throw error;
+
+      if (asShared) persist({ ...data, itinerary: itineraryPayload });
+
       const url = `${window.location.origin}/t/${row.share_slug}`;
       setShareUrl(url);
-      setModalMode("save");
       track("itinerary_saved", {
         city: data.meta.city,
         days: data.meta.days,
         budget: data.meta.budget,
         travel_style: data.meta.travelStyle,
       });
+      return url;
     } catch (e) {
       track("save_failed", { city: data.meta.city });
       toast.error(e instanceof Error ? e.message : "Failed to save");
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
+  const handleSave = async () => {
+    await save(false);
+    setModalMode("save");
+  };
+
   const handleShare = async () => {
     track("share_clicked", { city: data?.meta.city ?? "" });
-    if (!shareUrl) {
-      await save();
-      setModalMode("share");
-      return;
-    }
-    setModalMode("share");
+    const url = await save(true);
+    if (url) setModalMode("share");
   };
 
   if (!data || !day) {
@@ -386,7 +414,7 @@ export default function TripPage() {
 
           {day.stops.map((stop, i) => (
             <StopCard
-              key={i}
+              key={`${stop.name}-${i}`}
               stop={stop}
               index={i}
               active={activeStop === i}
@@ -409,9 +437,9 @@ export default function TripPage() {
                 />
                 {nominatimResults.length > 0 && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-[#dadce0] bg-white shadow-lg overflow-hidden">
-                    {nominatimResults.map((r, idx) => (
+                    {nominatimResults.map((r) => (
                       <button
-                        key={idx}
+                        key={`${r.lat}-${r.lon}`}
                         className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[#f1f3f4] transition border-b border-[#f1f3f4] last:border-0"
                         onClick={() => addStopFromNominatim(r)}
                       >
@@ -480,7 +508,7 @@ export default function TripPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={save}
+              onClick={handleSave}
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-1.5 border border-[#dadce0] text-[#1a73e8] text-sm font-medium py-2.5 rounded-full hover:bg-[#e8f0fe] transition disabled:opacity-50"
             >
@@ -534,7 +562,7 @@ export default function TripPage() {
                 View My Trips
               </button>
               <button
-                onClick={() => setModalMode("share")}
+                onClick={() => handleShare()}
                 className="w-full bg-[#1a73e8] text-white text-sm font-medium py-2.5 rounded-full hover:bg-[#1557b0] transition flex items-center justify-center gap-2"
               >
                 <Share2 className="h-4 w-4" /> Share itinerary

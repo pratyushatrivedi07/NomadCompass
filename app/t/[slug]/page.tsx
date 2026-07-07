@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Loader2, ChevronLeft } from "lucide-react";
@@ -22,6 +22,7 @@ const NomadCompass = dynamic(
 
 export default function SharedTripPage() {
   const { slug } = useParams<{ slug: string }>();
+  const router = useRouter();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [meta, setMeta] = useState<any>(null);
   const [activeDay, setActiveDay] = useState(1);
@@ -131,12 +132,12 @@ export default function SharedTripPage() {
 
         {/* Header */}
         <header className="flex items-center gap-2 px-3 py-2 md:py-3 border-b border-[#dadce0] shrink-0">
-          <Link
-            href="/"
+          <button
+            onClick={() => router.back()}
             className="p-2 hover:bg-[#f1f3f4] rounded-full transition flex items-center justify-center"
           >
             <ChevronLeft className="h-5 w-5 text-[#5f6368]" />
-          </Link>
+          </button>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <NomadCompassLogo size={28} />
             <div className="min-w-0">
@@ -148,8 +149,14 @@ export default function SharedTripPage() {
               </h1>
             </div>
           </div>
-          <span className="text-xs text-[#9aa0a6] bg-[#f1f3f4] px-2 py-1 rounded-full">
-            Shared
+          <span
+            className={`text-xs px-2 py-1 rounded-full font-medium ${
+              (itinerary as any)?._sharedAt
+                ? "bg-[#e6f4ea] text-[#137333]"
+                : "bg-[#f1f3f4] text-[#9aa0a6]"
+            }`}
+          >
+            {(itinerary as any)?._sharedAt ? "Shared" : "Saved"}
           </span>
         </header>
 
@@ -182,7 +189,7 @@ export default function SharedTripPage() {
           )}
           {day.stops.map((stop, i) => (
             <StopCard
-              key={i}
+              key={`${stop.name}-${i}`}
               stop={stop}
               index={i}
               active={activeStop === i}
