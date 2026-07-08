@@ -21,17 +21,17 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// const globalLimiter = new Ratelimit({
-//   redis,
-//   limiter: Ratelimit.fixedWindow(200, "24 h"),
-//   prefix: "global",
-// });
+const globalLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.fixedWindow(200, "24 h"),
+  prefix: "global",
+});
 
-// const ipLimiter = new Ratelimit({
-//   redis,
-//   limiter: Ratelimit.fixedWindow(3, "24 h"),
-//   prefix: "ip",
-// });
+const ipLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.fixedWindow(3, "24 h"),
+  prefix: "ip",
+});
 
 // Extract JSON from Gemini response — handles both structured output and text
 function extractJson(candidate: any): any {
@@ -191,24 +191,24 @@ export async function POST(req: Request) {
       .split(",")[0]
       .trim();
 
-    // const { success: globalOk } = await globalLimiter.limit("global");
-    // if (!globalOk) {
-    //   return NextResponse.json(
-    //     { error: "Daily site capacity reached. Try again tomorrow." },
-    //     { status: 429 },
-    //   );
-    // }
+    const { success: globalOk } = await globalLimiter.limit("global");
+    if (!globalOk) {
+      return NextResponse.json(
+        { error: "Daily site capacity reached. Try again tomorrow." },
+        { status: 429 },
+      );
+    }
 
-    // const { success: userOk, reset } = await ipLimiter.limit(ip);
-    // if (!userOk) {
-    //   const hoursLeft = Math.ceil((reset - Date.now()) / 3_600_000);
-    //   return NextResponse.json(
-    //     {
-    //       error: `Daily limit reached. Try again in ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
-    //     },
-    //     { status: 429 },
-    //   );
-    // }
+    const { success: userOk, reset } = await ipLimiter.limit(ip);
+    if (!userOk) {
+      const hoursLeft = Math.ceil((reset - Date.now()) / 3_600_000);
+      return NextResponse.json(
+        {
+          error: `Daily limit reached. Try again in ${hoursLeft} hour${hoursLeft !== 1 ? "s" : ""}.`,
+        },
+        { status: 429 },
+      );
+    }
 
     // Parse + validate input
     const body = await req.json();
