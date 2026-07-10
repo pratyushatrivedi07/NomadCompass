@@ -1,6 +1,6 @@
 # Nomad's Compass
 
-> trip planning that actually leaves the group chat.
+> Trip planning that actually leaves the group chat.
 
 A solo-built product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travellers.
 
@@ -37,7 +37,7 @@ Pick a city → set days, budget tier, travel style, optional must-visit places 
 | Framework | Next.js 15 App Router | Server components, API routes, edge-ready |
 | Styling | Tailwind CSS | Utility-first, no design system overhead |
 | Map | Leaflet.js + OpenStreetMap | Free tier; no Google Maps API billing |
-| AI | Google Gemini 2.5 Flash | Fast structured-JSON output; fallback to 2.0 Flash Lite on spike |
+| AI | Google Gemini 3.5 Flash (Fallback: Gemini 3.1 Flash Lite) | Fast structured-JSON output; fallback to 2.0 Flash Lite on spike |
 | Database | Supabase (Postgres) | Free tier; RLS for public share links |
 | Rate limiting | Upstash Redis | Serverless-safe; fixed-window per IP + global |
 | Analytics | GA4 + Vercel Analytics | GA4 with CookieYes consent for GDPR regions |
