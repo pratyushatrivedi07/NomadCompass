@@ -171,6 +171,12 @@
   }
 }
 
+/* ── CookieYes overrides ────────────────────────────────────────────────── */
+/* Hide the floating "revisit cookie preferences" button — it blocks content on mobile */
+.cky-btn-revisit-wrapper {
+  display: none !important;
+}
+
 /* ── Sonner toast overrides ─────────────────────────────────────────────── */
 
 /* 1. Global Container Rounded Corners Match */
