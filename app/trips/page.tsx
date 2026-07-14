@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrency } from "@/lib/cities";
 import { toast } from "sonner";
 import { NomadCompassLogo } from "@/components/NomadCompassLogo";
+import { track } from "@/lib/analytics";
 
 type Trip = {
   id: string;
@@ -25,6 +26,7 @@ export default function TripsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
+    track("trips_list_viewed");
     supabase
       .from("trips")
       .select(
@@ -33,8 +35,10 @@ export default function TripsPage() {
       .order("created_at", { ascending: false })
       .limit(20)
       .then(({ data }: { data: any }) => {
-        setTrips(data ?? []);
+        const loaded = data ?? [];
+        setTrips(loaded);
         setLoading(false);
+        track("trips_list_loaded", { trip_count: loaded.length });
       });
   }, []);
 

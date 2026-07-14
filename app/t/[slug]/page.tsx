@@ -31,6 +31,7 @@ export default function SharedTripPage() {
   const [notFound, setNotFound] = useState(false);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetTouchY = useRef(0);
+  const hasEngaged = useRef(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -168,6 +169,10 @@ export default function SharedTripPage() {
               onClick={() => {
                 setActiveDay(d.day);
                 setActiveStop(null);
+                if (!hasEngaged.current) {
+                  hasEngaged.current = true;
+                  track("shared_trip_engaged", { slug, city: meta?.city, action: "day_switch" });
+                }
               }}
               className={`px-3 py-3 text-sm font-medium transition border-b-2 -mb-px shrink-0 ${
                 activeDay === d.day
@@ -193,7 +198,13 @@ export default function SharedTripPage() {
               stop={stop}
               index={i}
               active={activeStop === i}
-              onClick={() => setActiveStop(i)}
+              onClick={() => {
+                setActiveStop(i);
+                if (!hasEngaged.current) {
+                  hasEngaged.current = true;
+                  track("shared_trip_engaged", { slug, city: meta?.city, action: "stop_click" });
+                }
+              }}
               currencySymbol={currency.symbol}
             />
           ))}

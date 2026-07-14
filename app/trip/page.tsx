@@ -74,7 +74,15 @@ export default function TripPage() {
       router.push("/");
       return;
     }
-    setData(JSON.parse(raw));
+    const parsed: Stored = JSON.parse(raw);
+    setData(parsed);
+    track("trip_viewed", {
+      city: parsed.meta.city,
+      days: parsed.meta.days,
+      budget: parsed.meta.budget,
+      travel_style: parsed.meta.travelStyle,
+      must_visit_count: parsed.meta.mustVisit?.length ?? 0,
+    });
   }, [router]);
 
   const startResize = (e: React.MouseEvent) => {
@@ -392,6 +400,7 @@ export default function TripPage() {
               onClick={() => {
                 setActiveDay(d.day);
                 setActiveStop(null);
+                track("day_switched", { city: data.meta.city, day: d.day });
               }}
               className={`px-3 py-3 text-sm font-medium transition border-b-2 -mb-px shrink-0 ${
                 activeDay === d.day

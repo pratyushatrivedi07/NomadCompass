@@ -82,12 +82,16 @@ export default function SetupPage() {
     if (!city.trim() || !budget || !travelStyle) return;
     setLoading(true);
 
+    const sessionFailed = sessionStorage.getItem("nomadCompass:lastFailed") === "1";
     track("generate_clicked", {
       city: city.trim(),
       days,
       budget,
       travel_style: travelStyle,
-      has_must_visit: mustVisit.trim().length > 0,
+      must_visit_count: mustVisit.trim().length > 0
+        ? mustVisit.split(",").filter(Boolean).length
+        : 0,
+      is_retry: sessionFailed,
     });
     const startedAt = Date.now();
 
@@ -115,22 +119,25 @@ export default function SetupPage() {
 
         // ── spike: all Gemini models overloaded ──────────────────────────────
         if (err.error === "spike" || res.status === 503) {
+          sessionStorage.setItem("nomadCompass:lastFailed", "1");
           track("generate_failed", { city: city.trim(), error_type: "spike" });
           toast.error(
             "AI models are experiencing a spike in traffic. Please try again in a moment.",
             {
-              duration: 8_000, // 12 s — prominent but not forever
-              id: "gemini-spike", // deduplicate if user hammers the button
+              duration: 8_000,
+              id: "gemini-spike",
             },
           );
-          return; // keep form unlocked so they can retry
+          return;
         }
 
         // ── rate limit ───────────────────────────────────────────────────────
         if (res.status === 429) {
+          sessionStorage.setItem("nomadCompass:lastFailed", "1");
+          const isGlobal = err.error?.includes("site capacity");
           track("generate_failed", {
             city: city.trim(),
-            error_type: "rate_limit",
+            error_type: isGlobal ? "rate_limit_global" : "rate_limit_ip",
           });
           toast.error(
             "You've hit today's generation limit. Come back tomorrow or try again later.",
@@ -145,13 +152,16 @@ export default function SetupPage() {
         );
       }
 
+      const modelUsed = res.headers.get("x-model-used") ?? "unknown";
       const result = await res.json();
+      sessionStorage.removeItem("nomadCompass:lastFailed");
       track("generate_succeeded", {
         city: city.trim(),
         days,
         budget,
         travel_style: travelStyle,
         duration_ms: Date.now() - startedAt,
+        model_used: modelUsed,
       });
       sessionStorage.setItem(
         "nomadCompass:current",
@@ -168,6 +178,7 @@ export default function SetupPage() {
       );
       router.push("/trip");
     } catch (e) {
+      sessionStorage.setItem("nomadCompass:lastFailed", "1");
       track("generate_failed", { city: city.trim(), error_type: "generic" });
       toast.error(
         `${e instanceof Error ? e.message : "Couldn't generate itinerary — please try again."}`,
