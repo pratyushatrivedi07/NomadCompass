@@ -4,7 +4,7 @@
 
 A solo-built product prototype exploring a missing feature in Google Maps: transport-aware, budget-filtered, day-structured trip planning for first-time international travellers.
 
-**Live:** [nomads-compass.vercel.app](https://nomads-compass.vercel.app)
+**Live:** [nomads-compass.vercel.app](https://nomads-compass.vercel.app?utm_source=github&utm_medium=social)
 
 ---
 
